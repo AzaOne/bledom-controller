@@ -98,7 +98,9 @@ If you prefer to run the agent without Docker:
 
 1.  **Install Prerequisites:**
     - Go 1.25+
-    - On Linux: `sudo apt-get install build-essential libdbus-1-dev`
+    - C compiler and D-Bus development libraries. Installation commands for common distributions:
+      - **Debian/Ubuntu:** `sudo apt update && sudo apt install build-essential libdbus-1-dev`
+      - **Arch Linux:** `sudo pacman -S base-devel dbus`
 
 2.  **Run the build script:**
     The script will build binaries for multiple platforms and place them in the `build/` directory.
