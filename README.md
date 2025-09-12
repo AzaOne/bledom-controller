@@ -3,9 +3,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 An advanced web-based controller for "BLEDOM" Bluetooth Low Energy (BLE) LED light strips. This project provides a self-hosted agent that connects directly to your light strip, exposing a rich web interface for real-time control, powerful Lua scripting for custom animations, and robust scheduling.
----
 
-## ✨ Features
+## Features
 
 - **Full Web Interface:** Control power, color, brightness, and hardware effects from any browser.
 - **Lua Scripting Engine:** Write and save your own custom color patterns and animations directly in the UI.
@@ -16,7 +15,7 @@ An advanced web-based controller for "BLEDOM" Bluetooth Low Energy (BLE) LED lig
 - **Dockerized & Cross-Platform:** Easy deployment using Docker and Docker Compose. Build scripts are included for native cross-platform binaries (Linux AMD64/ARM64).
 - **Automatic Reconnection:** The agent constantly monitors the BLE connection and will automatically reconnect and resume patterns if the device disconnects.
 
-## etting Started
+## Getting Started
 
 The easiest way to run the BLEDOM Controller is with Docker and Docker Compose.
 
@@ -47,7 +46,7 @@ The easiest way to run the BLEDOM Controller is with Docker and Docker Compose.
 4.  **Access the Web UI:**
     Open your web browser and navigate to `http://<your-host-ip>:8080`. The controller will automatically scan for and connect to your BLEDOM device.
 
-## 💻 Usage
+## Usage
 
 ### Main Controls
 - **Power, Color, Brightness:** Use the sliders and color pickers for direct control. These actions will stop any running Lua pattern.
@@ -71,7 +70,7 @@ The scheduler uses standard cron syntax to automate tasks.
     - `pattern [filename.lua]`: Runs a specific Lua pattern file. Example: `pattern sunrise.lua`.
     - `lua [lua_code]`: Executes a single line of Lua code. Example: `lua set_color(255, 100, 0)`.
 
-## 📚 Lua API Reference
+## Lua API Reference
 
 You can call these global functions from your Lua scripts.
 
@@ -93,7 +92,7 @@ These are blocking functions that run a complete animation. They are also cancel
 - `fade(r1, g1, b1, r2, g2, b2, duration_ms)`: Smoothly transitions from a start color to an end color.
   - *Example:* `fade(255, 0, 0, 0, 0, 255, 3000)`
 
-## 🛠️ Building from Source
+## Building from Source
 
 If you prefer to run the agent without Docker:
 
@@ -113,7 +112,7 @@ If you prefer to run the agent without Docker:
     ./build/bledom-controller-linux-amd64
     ```
 
-## 📂 Project Structure
+## Project Structure
 
 - `cmd/agent/main.go`: Application entry point.
 - `internal/agent`: Core agent logic, ties all services together.
@@ -126,10 +125,10 @@ If you prefer to run the agent without Docker:
 - `Dockerfile`: Defines the container for production deployment.
 - `compose.yml`: Easy-to-use Docker Compose file for deployment.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/AzaOne/bledom-controller/issues).
 
-## 📜 License
+## License
 
 This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
