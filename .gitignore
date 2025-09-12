@@ -1,0 +1,13 @@
+# Compiled binaries
+bledom-controller
+/build/
+
+# IDE and OS specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# User data files
+schedules.json
