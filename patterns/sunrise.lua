@@ -11,7 +11,7 @@ local min = tonumber(os.date("%M"))
 local current_time_in_minutes = hour * 60 + min
 
 -- Define transition times in minutes from midnight
-local morning_transition = 7 * 60   -- 7:00
+local morning_transition = 8 * 60   -- 8:00
 local dusk_transition = 21 * 60     -- 21:00
 local evening_transition = 23 * 60  -- 23:00
 
