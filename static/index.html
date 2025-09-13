@@ -121,7 +121,6 @@
                 </ul>
             </div>
 
-            
             <div class="control-section docs-section">
                 <summary><h3>Documentation</h3></summary>
                     <h4>Lua Pattern API</h4>
@@ -140,6 +139,7 @@
                          <li><code>breathe(duration_ms)</code><br>Performs a smooth "breathing" pulse from 1% to 100% brightness and back. The color should be set beforehand. Example: <code>set_color(0, 255, 255); breathe(4000) -- 4 second cyan pulse</code></li>
                          <li><code>strobe(r, g, b, duration_ms, frequency_hz)</code><br>Flashes the specified color for a total duration. Example: <code>strobe(255, 255, 255, 5000, 10) -- 5 seconds of white strobe at 10 Hz</code></li>
                          <li><code>fade(r1, g1, b1, r2, g2, b2, duration_ms)</code><br>Smoothly transitions from a start color to an end color. Example: <code>fade(255, 0, 0, 0, 0, 255, 3000) -- 3 second fade from red to blue</code></li>
+                         <li><code>fade_brightness(start_brightness, end_brightness, duration_ms)</code><br>Smoothly transitions the brightness from a start value to an end value. Brightness values are 1-100. The color should be set beforehand. Example: <code>set_color(255, 255, 0); fade_brightness(1, 100, 1500) -- 1.5 second fade in to yellow</code> or <code>fade_brightness(100, 20, 2000) -- 2 second fade out to 20% brightness</code></li>
                     </ul>
                     <hr>
                     <h4>Scheduler</h4>
@@ -155,6 +155,7 @@
                         </li>
                     </ul>
             </div>
+
             <div class="control-section">
                 <summary><h3>Advanced Device Settings</h3></summary>
                 <h4>On-Device Scheduling</h4>

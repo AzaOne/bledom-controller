@@ -22,6 +22,7 @@ func (e *Engine) registerGoFunctions(L *lua.LState, cancellable bool) {
         L.SetGlobal("breathe", L.NewFunction(e.luaBreathe))
         L.SetGlobal("strobe", L.NewFunction(e.luaStrobe))
         L.SetGlobal("fade", L.NewFunction(e.luaFade))
+		L.SetGlobal("fade_brightness", L.NewFunction(e.luaFadeBrightness))
     } else {
         L.SetGlobal("sleep", L.NewFunction(luaSleepNoCancel))
     }
@@ -179,4 +180,48 @@ func (e *Engine) luaFade(L *lua.LState) int {
     // Ensure the final color is set exactly
     e.bleController.SetColor(r2, g2, b2)
     return 0
+}
+
+// luaFadeBrightness smoothly transitions the brightness from a start value to an end value over a specified duration.
+func (e *Engine) luaFadeBrightness(L *lua.LState) int {
+	startBrightness := L.ToInt(1)
+	endBrightness := L.ToInt(2)
+	durationMs := L.ToInt(3)
+
+	// Clamp brightness values to the valid range [1, 100]
+	startBrightness = int(math.Max(1, math.Min(100, float64(startBrightness))))
+	endBrightness = int(math.Max(1, math.Min(100, float64(endBrightness))))
+
+	duration := time.Duration(durationMs) * time.Millisecond
+
+	// Handle edge cases: zero or negative duration, or no change needed
+	if duration <= 0 || startBrightness == endBrightness {
+		e.bleController.SetPower(true) // Still ensure power is on
+		e.bleController.SetBrightness(endBrightness) // Just set the final brightness
+		return 0
+	}
+
+	e.bleController.SetPower(true) // Ensure power is on
+
+	steps := 100 // Number of steps for smooth transition
+	stepDuration := duration / time.Duration(steps)
+	if stepDuration < time.Millisecond {
+		stepDuration = time.Millisecond // Minimum 1ms per step
+	}
+
+	for i := 0; i <= steps; i++ {
+		progress := float64(i) / float64(steps) // Calculate current progress (0.0 to 1.0)
+
+		// Linear interpolation for brightness
+		currentBrightness := int(math.Round(float64(startBrightness) + progress*(float64(endBrightness-startBrightness))))
+
+		e.bleController.SetBrightness(currentBrightness)
+
+		if cancellableSleep(e.currentPatternCtx, stepDuration) {
+			return 0 // Exit if cancelled
+		}
+	}
+	// Ensure the final brightness is set exactly
+	e.bleController.SetBrightness(endBrightness)
+	return 0
 }

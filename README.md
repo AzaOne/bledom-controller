@@ -91,6 +91,9 @@ These are blocking functions that run a complete animation. They are also cancel
   - *Example:* `strobe(255, 255, 255, 5000, 10)`
 - `fade(r1, g1, b1, r2, g2, b2, duration_ms)`: Smoothly transitions from a start color to an end color.
   - *Example:* `fade(255, 0, 0, 0, 0, 255, 3000)`
+- `fade_brightness(start_brightness, end_brightness, duration_ms)`: Smoothly transitions the brightness from a start value to an end value. Brightness values are 1-100. The color should be set beforehand. 
+  - *Example:* `fade_brightness(100, 20, 2000)`: 2 second fade out to 20% brightness.
+
 
 ## Building from Source
 
