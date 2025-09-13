@@ -1,0 +1,20 @@
+{
+  "ServerPort": "8080",
+  "StaticFilesDir": "./static",
+  "AllowedOrigins": [
+    "http://localhost:8080",
+    "http://bledom.home.local"
+  ],
+  "DeviceNames": [
+    "ELK-BLEDOM   ",
+    "ELK-BLEDOM",
+    "BLEDOM"
+  ],
+  "BLEScanTimeout": "30s",
+  "BLEConnectTimeout": "7s",
+  "BLEHeartbeatInterval": "60s",
+  "BLERetryDelay": "5s",
+
+  "PatternsDir": "patterns",
+  "SchedulesFile": "schedules.json"
+}

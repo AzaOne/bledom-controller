@@ -11,6 +11,7 @@ services:
       - ./patterns:/app/patterns
       - ./static:/app/static
       - ./schedules.json:/app/schedules.json
+      - ./config.json:/app/config.json
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     cap_add:

@@ -1,159 +1,199 @@
+// internal/agent/agent.go
 package agent
 
 import (
-	"context"
-	"log"
-	"sync"
+    "context"
+    "fmt"
+    "log"
+    "sync"
+    "time"
 
-	"bledom-controller/internal/ble"
-	"bledom-controller/internal/lua"
-	"bledom-controller/internal/scheduler"
-	"bledom-controller/internal/server"
-	"github.com/robfig/cron/v3"
+    "bledom-controller/internal/ble"
+    "bledom-controller/internal/config" // ADD: Import the new config package
+    "bledom-controller/internal/lua"
+    "bledom-controller/internal/scheduler"
+    "bledom-controller/internal/server"
+    "github.com/robfig/cron/v3"
 )
 
 // Agent is the core application struct holding all services.
 type Agent struct {
-	ctx           context.Context
-	cancel        context.CancelFunc
-	bleController *ble.Controller
-	luaEngine     *lua.Engine
-	scheduler     *scheduler.Scheduler
-	server        *server.Server
-
-	// wg (WaitGroup) for waiting on background goroutines to finish.
-	wg sync.WaitGroup
-
-	// State for safely sharing BLE status
-	lastBleStatus bool
-	lastRssi      int16
-	statusMutex   sync.RWMutex
-	runningPattern string
-	agentMutex     sync.Mutex
+    ctx           context.Context
+    cancel        context.CancelFunc
+    bleController *ble.Controller
+    luaEngine     *lua.Engine
+    scheduler     *scheduler.Scheduler
+    server        *server.Server
+    config        *config.Config // UPDATE: Use *config.Config
+    wg            sync.WaitGroup // for waiting on background goroutines to finish.
+    // State for safely sharing BLE status
+    lastBleStatus bool
+    lastRsssi      int16
+    statusMutex    sync.RWMutex
+    runningPattern string
+    agentMutex     sync.Mutex
 }
 
 // NewAgent creates and initializes a new agent.
-func NewAgent() (*Agent, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+// UPDATE: Expects *config.Config
+func NewAgent(cfg *config.Config) (*Agent, error) {
+    ctx, cancel := context.WithCancel(context.Background())
 
-	a := &Agent{
-		ctx:           ctx,
-		cancel:        cancel,
-		lastBleStatus: false, // Assume disconnected at start
-		lastRssi:      0,
-	}
+    a := &Agent{
+        ctx:            ctx,
+        cancel:         cancel,
+        lastBleStatus: false, // Assume disconnected at start
+        lastRsssi:      0,
+        config:         cfg, // Assign the config
+    }
 
-	a.bleController = ble.NewController()
-	a.luaEngine = lua.NewEngine(a.bleController)
+    // Parse BLE durations
+    bleScanTimeout, err := time.ParseDuration(cfg.BLEScanTimeout)
+    if err != nil {
+        return nil, fmt.Errorf("invalid BLEScanTimeout: %w", err)
+    }
+    bleConnectTimeout, err := time.ParseDuration(cfg.BLEConnectTimeout)
+    if err != nil {
+        return nil, fmt.Errorf("invalid BLEConnectTimeout: %w", err)
+    }
+    bleHeartbeatInterval, err := time.ParseDuration(cfg.BLEHeartbeatInterval)
+    if err != nil {
+        return nil, fmt.Errorf("invalid BLEHeartbeatInterval: %w", err)
+    }
+    bleRetryDelay, err := time.ParseDuration(cfg.BLERetryDelay)
+    if err != nil {
+        return nil, fmt.Errorf("invalid BLERetryDelay: %w", err)
+    }
 
-	patternStatusCallback := func(runningPattern string) {
-		a.agentMutex.Lock()
-		a.runningPattern = runningPattern
-		a.agentMutex.Unlock()
+    // Pass relevant config fields to BLE controller
+    a.bleController = ble.NewController(
+        cfg.DeviceNames,
+        bleScanTimeout,
+        bleConnectTimeout,
+        bleHeartbeatInterval,
+        bleRetryDelay,
+    )
 
-		payload := map[string]string{"running": runningPattern}
-		a.server.Hub.Broadcast(server.NewMessage("pattern_status", payload))
-	}
+    // Pass relevant config fields to Lua engine
+    a.luaEngine = lua.NewEngine(a.bleController, cfg.PatternsDir)
 
-	a.scheduler = scheduler.NewScheduler(a.luaEngine, a.bleController, patternStatusCallback)
+    patternStatusCallback := func(runningPattern string) {
+        a.agentMutex.Lock()
+        a.runningPattern = runningPattern
+        a.agentMutex.Unlock()
 
-	// The command handler will now also use this generic callback.
-	commandHandler := NewCommandHandler(a.bleController, a.luaEngine, a.scheduler)
-	// Pass the getLastRssi function to the server.
-	a.server = server.NewServer(commandHandler, a.getLastBleStatus, a.getLastRssi, a.getSchedules)
+        payload := map[string]string{"running": runningPattern}
+        // Ensure a.server is initialized before broadcasting
+        if a.server != nil && a.server.Hub != nil {
+            a.server.Hub.Broadcast(server.NewMessage("pattern_status", payload))
+        } else {
+            log.Printf("Warning: Cannot broadcast pattern_status, server not ready. Pattern: %s", runningPattern)
+        }
+    }
 
-	return a, nil
+    // Pass relevant config fields to scheduler
+    a.scheduler = scheduler.NewScheduler(a.luaEngine, a.bleController, patternStatusCallback, cfg.SchedulesFile)
+
+    commandHandler := NewCommandHandler(a.bleController, a.luaEngine, a.scheduler)
+
+    // Pass relevant config fields to the server.
+    a.server = server.NewServer(
+        commandHandler,
+        a.luaEngine,
+        a.getLastBleStatus,
+        a.getLastRsssi,
+        a.getSchedules,
+        cfg.ServerPort,
+        cfg.StaticFilesDir,
+        cfg.AllowedOrigins,
+    )
+
+    return a, nil
 }
 
 // getLastBleStatus is a thread-safe way to get the current connection status.
 func (a *Agent) getLastBleStatus() bool {
-	a.statusMutex.RLock()
-	defer a.statusMutex.RUnlock()
-	return a.lastBleStatus
+    a.statusMutex.RLock()
+    defer a.statusMutex.RUnlock()
+    return a.lastBleStatus
 }
 
 // getLastRssi is a thread-safe way to get the last known RSSI.
-func (a *Agent) getLastRssi() int16 {
-	a.statusMutex.RLock()
-	defer a.statusMutex.RUnlock()
-	return a.lastRssi
+func (a *Agent) getLastRsssi() int16 {
+    a.statusMutex.RLock()
+    defer a.statusMutex.RUnlock()
+    return a.lastRsssi
 }
 
 // getSchedules is a thread-safe way to get the current schedules.
 func (a *Agent) getSchedules() map[cron.EntryID]scheduler.ScheduleEntry {
-	return a.scheduler.GetAll()
+    return a.scheduler.GetAll()
 }
 
 // Run starts all the agent's services.
 func (a *Agent) Run() {
-	// Define the callback for BLE status changes.
-	bleStatusCallback := func(connected bool, rssi int16) {
-		wasConnected := a.getLastBleStatus() // Get status *before* updating
+    bleStatusCallback := func(connected bool, rssi int16) {
+        wasConnected := a.getLastBleStatus() // Get status *before* updating
 
-		a.statusMutex.Lock()
-		a.lastBleStatus = connected
-		a.lastRssi = rssi
-		a.statusMutex.Unlock()
+        a.statusMutex.Lock()
+        a.lastBleStatus = connected
+        a.lastRsssi = rssi
+        a.statusMutex.Unlock()
 
-		msg := server.NewMessage("ble_status", map[string]interface{}{
-			"connected": connected,
-			"rssi":      rssi,
-		})
-		a.server.Hub.Broadcast(msg)
+        msg := server.NewMessage("ble_status", map[string]interface{}{
+            "connected": connected,
+            "rssi":      rssi,
+        })
+        a.server.Hub.Broadcast(msg)
 
-		// Check if the status changed from disconnected to connected.
-		if !wasConnected && connected {
-			log.Println("Device connected, checking for a pattern to resume.")
+        if !wasConnected && connected {
+            log.Println("Device connected, checking for a pattern to resume.")
 
-			a.agentMutex.Lock()
-			patternToResume := a.runningPattern
-			a.agentMutex.Unlock()
+            a.agentMutex.Lock()
+            patternToResume := a.runningPattern
+            a.agentMutex.Unlock()
 
-			if patternToResume != "" {
-				log.Printf("Resuming pattern: %s", patternToResume)
+            if patternToResume != "" {
+                log.Printf("Resuming pattern: %s", patternToResume)
 
-				// Create the callback that the Lua engine will use to report its status.
-				resumeCallback := func(runningPattern string) {
-					a.agentMutex.Lock()
-					a.runningPattern = runningPattern
-					a.agentMutex.Unlock()
-					payload := map[string]string{"running": runningPattern}
-					a.server.Hub.Broadcast(server.NewMessage("pattern_status", payload))
-				}
-				// Run the pattern in a new goroutine.
-				go a.luaEngine.RunPattern(patternToResume, resumeCallback)
-			}
-		}
-	}
+                resumeCallback := func(runningPattern string) {
+                    a.agentMutex.Lock()
+                    a.runningPattern = runningPattern
+                    a.agentMutex.Unlock()
+                    payload := map[string]string{"running": runningPattern}
+                    a.server.Hub.Broadcast(server.NewMessage("pattern_status", payload))
+                }
+                go a.luaEngine.RunPattern(patternToResume, resumeCallback)
+            }
+        }
+    }
 
-	// Run the BLE controller in a goroutine managed by the WaitGroup
-	a.wg.Add(1)
-	go func() {
-		defer a.wg.Done()
-		a.bleController.Run(a.ctx, bleStatusCallback)
-	}()
+    a.wg.Add(1)
+    go func() {
+        defer a.wg.Done()
+        a.bleController.Run(a.ctx, bleStatusCallback)
+    }()
 
-	a.scheduler.Start()
+    a.scheduler.Start()
 
-	log.Println("Agent is running. Starting web server on http://localhost:8080")
-	if err := a.server.ListenAndServe(); err != nil {
-		log.Printf("Server error: %v", err)
-	}
+    log.Printf("Agent is running. Starting web server on http://localhost:%s", a.config.ServerPort)
+    if err := a.server.ListenAndServe(); err != nil {
+        log.Printf("Server error: %v", err)
+    }
 }
 
 // Shutdown gracefully stops the agent's services.
 func (a *Agent) Shutdown() {
-	log.Println("Stopping scheduler and server...")
-	a.scheduler.Stop()
-	// Use a new background context for server shutdown to ensure it completes.
-	if err := a.server.Shutdown(context.Background()); err != nil {
-		log.Printf("Server shutdown error: %v", err)
-	}
+    log.Println("Stopping scheduler and server...")
+    a.scheduler.Stop()
+    if err := a.server.Shutdown(context.Background()); err != nil {
+        log.Printf("Server shutdown error: %v", err)
+    }
 
-	log.Println("Signaling background services to stop...")
-	a.cancel() // Signal goroutines using a.ctx to stop
+    log.Println("Signaling background services to stop...")
+    a.cancel()
 
-	log.Println("Waiting for background services to finish...")
-	a.wg.Wait() // Wait for the BLE controller goroutine to finish completely
-	log.Println("All background services finished.")
+    log.Println("Waiting for background services to finish...")
+    a.wg.Wait()
+    log.Println("All background services finished.")
 }

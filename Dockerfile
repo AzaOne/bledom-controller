@@ -38,6 +38,7 @@ COPY --from=builder /app/bledom-controller .
 
 COPY ./static ./static
 COPY ./patterns ./patterns
+COPY config.json .
 # COPY ./schedules.json .
 
 EXPOSE 8080
