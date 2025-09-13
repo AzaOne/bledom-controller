@@ -131,7 +131,7 @@ export function updateScheduleList(schedules, removeScheduleApi) {
         for (const id in schedules) {
             const item = schedules[id];
             const li = document.createElement('li');
-            li.innerHTML = `<span><code>${item.Spec}</code> &rarr; <code>${item.Command}</code></span>
+            li.innerHTML = `<span><code>${item.spec}</code> &rarr; <code>${item.command}</code></span>
                           <button class="remove-schedule-btn" data-id="${id}" style="background-color:var(--warn-color); padding: 5px 10px; font-size: 0.8em;">Remove</button>`;
             ui.scheduleList.appendChild(li);
         }
