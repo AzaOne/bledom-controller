@@ -31,8 +31,8 @@ func LoadConfig(path string) (*config.Config, error) {
         BLEConnectTimeout:    "7s",
         BLEHeartbeatInterval: "60s",
         BLERetryDelay:        "5s",
-        BLECommandRateLimitRate: 10.0,
-        BLECommandRateLimitBurst: 5,
+        BLECommandRateLimitRate: 25.0,
+        BLECommandRateLimitBurst: 25,
         PatternsDir:          "patterns",
         SchedulesFile:        "schedules.json",
     }
