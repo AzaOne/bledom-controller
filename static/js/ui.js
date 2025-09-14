@@ -55,7 +55,7 @@ export const ui = {
  */
 export function initCodeMirror() {
     ui.codeEditor = CodeMirror(document.getElementById('codeEditor'), {
-        mode: 'lua', theme: 'material-darker', lineNumbers: true,
+        mode: 'lua', theme: 'material-darker', lineNumbers: false,
         value: '-- Click "New" or "Load" to start editing a pattern.\n'
     });
     return ui.codeEditor;
