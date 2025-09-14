@@ -1,4 +1,3 @@
-// internal/agent/agent.go
 package agent
 
 import (
@@ -9,7 +8,7 @@ import (
     "time"
 
     "bledom-controller/internal/ble"
-    "bledom-controller/internal/config" // ADD: Import the new config package
+    "bledom-controller/internal/config"
     "bledom-controller/internal/lua"
     "bledom-controller/internal/scheduler"
     "bledom-controller/internal/server"
@@ -24,7 +23,7 @@ type Agent struct {
     luaEngine     *lua.Engine
     scheduler     *scheduler.Scheduler
     server        *server.Server
-    config        *config.Config // UPDATE: Use *config.Config
+    config        *config.Config
     wg            sync.WaitGroup // for waiting on background goroutines to finish.
     // State for safely sharing BLE status
     lastBleStatus bool
@@ -35,7 +34,6 @@ type Agent struct {
 }
 
 // NewAgent creates and initializes a new agent.
-// UPDATE: Expects *config.Config
 func NewAgent(cfg *config.Config) (*Agent, error) {
     ctx, cancel := context.WithCancel(context.Background())
 
@@ -44,7 +42,7 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
         cancel:         cancel,
         lastBleStatus: false, // Assume disconnected at start
         lastRsssi:      0,
-        config:         cfg, // Assign the config
+        config:         cfg,
     }
 
     // Parse BLE durations
@@ -65,16 +63,18 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
         return nil, fmt.Errorf("invalid BLERetryDelay: %w", err)
     }
 
-    // Pass relevant config fields to BLE controller
+    // Pass relevant config fields to BLE controller, including the new rate limit parameters
     a.bleController = ble.NewController(
+        ctx, // Pass context here for the command writer goroutine
         cfg.DeviceNames,
         bleScanTimeout,
         bleConnectTimeout,
         bleHeartbeatInterval,
         bleRetryDelay,
+        cfg.BLECommandRateLimitRate,  // New parameter
+        cfg.BLECommandRateLimitBurst, // New parameter
     )
 
-    // Pass relevant config fields to Lua engine
     a.luaEngine = lua.NewEngine(a.bleController, cfg.PatternsDir)
 
     patternStatusCallback := func(runningPattern string) {
@@ -91,12 +91,10 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
         }
     }
 
-    // Pass relevant config fields to scheduler
     a.scheduler = scheduler.NewScheduler(a.luaEngine, a.bleController, patternStatusCallback, cfg.SchedulesFile)
 
     commandHandler := NewCommandHandler(a.bleController, a.luaEngine, a.scheduler)
 
-    // Pass relevant config fields to the server.
     a.server = server.NewServer(
         commandHandler,
         a.luaEngine,
@@ -191,7 +189,7 @@ func (a *Agent) Shutdown() {
     }
 
     log.Println("Signaling background services to stop...")
-    a.cancel()
+    a.cancel() // This will signal all goroutines created with a.ctx
 
     log.Println("Waiting for background services to finish...")
     a.wg.Wait()

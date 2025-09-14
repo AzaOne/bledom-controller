@@ -13,7 +13,9 @@ type Config struct {
     BLEConnectTimeout     string   `json:"BLEConnectTimeout"`
     BLEHeartbeatInterval  string   `json:"BLEHeartbeatInterval"`
     BLERetryDelay         string   `json:"BLERetryDelay"`
-
+    BLECommandRateLimitRate  float64 `json:"BLECommandRateLimitRate"`
+    BLECommandRateLimitBurst int     `json:"BLECommandRateLimitBurst"`
+    
     // File system settings
     PatternsDir   string `json:"PatternsDir"`
     SchedulesFile string `json:"SchedulesFile"`

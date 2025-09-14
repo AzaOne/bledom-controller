@@ -6,6 +6,7 @@ import (
     "time"
 
     "tinygo.org/x/bluetooth"
+    "golang.org/x/time/rate" // New import
 )
 
 var (
@@ -18,7 +19,13 @@ var (
 // Controller manages the BLE connection and commands.
 type Controller struct {
     characteristic bluetooth.DeviceCharacteristic
+    // disconnectChan: An unbuffered channel used by commandWriterLoop or heartbeat to signal
+    // a disconnection event to the main Run loop, which then handles reconnection.
+    // It's created and closed by the Run loop itself for each connection session.
     disconnectChan chan struct{}
+    // commandChan: A buffered channel to send BLE command payloads from multiple goroutines
+    // to a single rate-limited writer goroutine.
+    commandChan    chan []byte
 
     deviceNames           []string
     bleServiceUUID        bluetooth.UUID
@@ -27,13 +34,15 @@ type Controller struct {
     bleConnectTimeout     time.Duration
     bleHeartbeatInterval  time.Duration
     bleRetryDelay         time.Duration
+    bleCommandLimiter     *rate.Limiter // New: Rate limiter for BLE commands
 }
 
 // NewController creates a new BLE controller with configurable parameters.
-func NewController(deviceNames []string, scanTimeout, connectTimeout, heartbeatInterval, retryDelay time.Duration) *Controller {
+// It also starts a background goroutine for rate-limited command writing.
+func NewController(ctx context.Context, deviceNames []string, scanTimeout, connectTimeout, heartbeatInterval, retryDelay time.Duration, commandRateLimitRate float64, commandRateLimitBurst int) *Controller {
     // Parse UUIDs. For now, using defaults, but could be passed as strings from config.
-  serviceUUID, _ := bluetooth.ParseUUID(defaultServiceUUIDStr)
-  characteristicUUID, _ := bluetooth.ParseUUID(defaultCharacteristicUUIDStr)
+    serviceUUID, _ := bluetooth.ParseUUID(defaultServiceUUIDStr)
+    characteristicUUID, _ := bluetooth.ParseUUID(defaultCharacteristicUUIDStr)
 
     // Log if UUIDs couldn't be parsed (shouldn't happen with valid hardcoded strings)
     if serviceUUID == (bluetooth.UUID{}) {
@@ -43,30 +52,71 @@ func NewController(deviceNames []string, scanTimeout, connectTimeout, heartbeatI
         log.Printf("Warning: Could not parse default BLE Characteristic UUID: %s", defaultCharacteristicUUIDStr)
     }
 
-        return &Controller{
-            deviceNames: deviceNames,
-            bleServiceUUID: serviceUUID,
-            bleCharacteristicUUID: characteristicUUID,
-            bleScanTimeout: scanTimeout,
-            bleConnectTimeout: connectTimeout,
-            bleHeartbeatInterval: heartbeatInterval,
-            bleRetryDelay: retryDelay,
-        }
+    c := &Controller{
+        deviceNames:           deviceNames,
+        bleServiceUUID:        serviceUUID,
+        bleCharacteristicUUID: characteristicUUID,
+        bleScanTimeout:        scanTimeout,
+        bleConnectTimeout:     connectTimeout,
+        bleHeartbeatInterval:  heartbeatInterval,
+        bleRetryDelay:         retryDelay,
+        // The command channel buffer size allows some commands to queue up
+        // while the rate limiter catches up, before dropping new commands.
+        commandChan:           make(chan []byte, commandRateLimitBurst*2),
+        bleCommandLimiter:     rate.NewLimiter(rate.Limit(commandRateLimitRate), commandRateLimitBurst),
+    }
+
+    go c.commandWriterLoop(ctx) // Start the dedicated command writer goroutine
+    return c
 }
 
-// Write sends a byte command to the device.
+// Write sends a byte command to the device through a rate-limited channel.
+// This method is non-blocking. If the command queue is full, the command is dropped.
 func (c *Controller) Write(payload []byte) {
-    if (c.characteristic == bluetooth.DeviceCharacteristic{}) {
-        log.Println("BLE device not connected. Ignoring command.")
-        return
+    select {
+    case c.commandChan <- payload:
+        // Command successfully queued
+    default:
+        log.Printf("Warning: BLE command queue full, dropping command: %x", payload)
     }
-    _, err := c.characteristic.WriteWithoutResponse(payload)
-    if err != nil {
-        log.Printf("Failed to write to BLEDOM device (assuming disconnection): %v", err)
+}
+
+// commandWriterLoop processes commands from commandChan, applying rate limits,
+// and writes them to the BLE characteristic. This runs in its own goroutine.
+func (c *Controller) commandWriterLoop(ctx context.Context) {
+    log.Println("BLE command writer loop started.")
+    for {
         select {
-        case <-c.disconnectChan:
-        default:
-            close(c.disconnectChan)
+        case <-ctx.Done():
+            log.Println("BLE command writer loop shutting down.")
+            return
+        case payload := <-c.commandChan:
+            // Wait for a token from the rate limiter
+            startWait := time.Now()
+            if err := c.bleCommandLimiter.Wait(ctx); err != nil {
+                // Context cancelled while waiting for token, e.g., during shutdown
+                log.Printf("BLE command limiter wait interrupted: %v", err)
+                return
+            }
+            if time.Since(startWait) > 50*time.Millisecond { // Log if command was significantly delayed
+                log.Printf("Debug: BLE command \"%x\" delayed by rate limiter for %s", payload, time.Since(startWait))
+            }
+
+            if (c.characteristic == bluetooth.DeviceCharacteristic{}) {
+                log.Printf("BLE device not connected. Dropping command: %x", payload)
+                continue // Skip writing if not connected
+            }
+
+            _, err := c.characteristic.WriteWithoutResponse(payload)
+            if err != nil {
+                log.Printf("Failed to write to BLEDOM device (assuming disconnection): %v. Command: %x", err, payload)
+                // Signal disconnection to the main Run loop if it's not already signalled.
+                select {
+                case c.disconnectChan <- struct{}{}:
+                default:
+                    // Channel full, means Run loop is already processing a disconnect or is not ready.
+                }
+            }
         }
     }
 }
@@ -140,16 +190,11 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
             onStatusChange(true, deviceScanResult.RSSI)
 
             discoveryCtx, cancelDiscovery := context.WithTimeout(context.Background(), c.bleConnectTimeout)
-            // Note: defer cancelDiscovery() should be here, not below the loop,
-            // to ensure it cleans up if the loop `continue`s or `return`s.
-            // It was fine before because the loop `continue`d/`return`ed only after `cancelDiscovery()` was called
-            // OR if device.Disconnect() was called, but better to be explicit outside the loop.
-            // Let's ensure it's called on every exit path from this block.
+            defer cancelDiscovery()
 
             services, err := device.DiscoverServices([]bluetooth.UUID{c.bleServiceUUID})
             if err != nil || len(services) == 0 || discoveryCtx.Err() != nil {
                 log.Printf("Failed to discover BLEDOM services: %v", err)
-                cancelDiscovery() // Make sure this is called
                 device.Disconnect()
                 continue
             }
@@ -157,15 +202,15 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
             chars, err := services[0].DiscoverCharacteristics([]bluetooth.UUID{c.bleCharacteristicUUID})
             if err != nil || len(chars) == 0 || discoveryCtx.Err() != nil {
                 log.Printf("Failed to discover BLEDOM characteristics: %v", err)
-                cancelDiscovery() // Make sure this is called
                 device.Disconnect()
                 continue
             }
             c.characteristic = chars[0]
-            cancelDiscovery() // Discovery finished successfully
-
+            
             log.Println("BLEDOM device is ready.")
-            c.disconnectChan = make(chan struct{})
+            // Initialize disconnectChan for this connection session.
+            // This unbuffered channel is used to signal a disconnect from other goroutines.
+            c.disconnectChan = make(chan struct{}) 
             
             heartbeatTicker := time.NewTicker(c.bleHeartbeatInterval)
             defer heartbeatTicker.Stop()
@@ -179,12 +224,17 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
                     _, err := c.characteristic.Read(heartbeatBuffer)
                     if err != nil {
                         log.Printf("Heartbeat read failed on main characteristic (assuming disconnection): %v", err)
-                        close(c.disconnectChan)
+                        // Signal disconnection to the Run loop.
+                        select {
+                        case c.disconnectChan <- struct{}{}:
+                        default:
+                            // Channel full, means Run loop is already processing a disconnect.
+                        }
                     } else {
                         // log.Println("Heartbeat check successful, connection is active.") // Can be noisy
                     }
-
                 case <-c.disconnectChan:
+                    // Received a signal from commandWriterLoop or heartbeat that device disconnected
                     log.Println("Disconnection signal received. Rescanning...")
                     running = false 
 
@@ -197,7 +247,8 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 
             onStatusChange(false, 0)
             c.characteristic = bluetooth.DeviceCharacteristic{}
-            c.disconnectChan = nil
+            close(c.disconnectChan) // Close the channel as this connection session ends
+            c.disconnectChan = nil // Reset for next connection
             device.Disconnect()
             time.Sleep(c.bleRetryDelay)
         }

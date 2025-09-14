@@ -1,4 +1,3 @@
-// cmd/agent/main.go
 package main
 
 import (
@@ -32,6 +31,8 @@ func LoadConfig(path string) (*config.Config, error) {
         BLEConnectTimeout:    "7s",
         BLEHeartbeatInterval: "60s",
         BLERetryDelay:        "5s",
+        BLECommandRateLimitRate: 10.0,
+        BLECommandRateLimitBurst: 5,
         PatternsDir:          "patterns",
         SchedulesFile:        "schedules.json",
     }
@@ -63,6 +64,16 @@ func LoadConfig(path string) (*config.Config, error) {
     if cfg.SchedulesFile == "" {
         cfg.SchedulesFile = "schedules.json"
     }
+    // Ensure rate limit values are sensible
+    if cfg.BLECommandRateLimitRate <= 0 {
+        cfg.BLECommandRateLimitRate = 1.0 // Minimum 1 command/sec
+        log.Printf("Warning: BLECommandRateLimitRate was invalid or zero, defaulted to %.1f", cfg.BLECommandRateLimitRate)
+    }
+    if cfg.BLECommandRateLimitBurst <= 0 {
+        cfg.BLECommandRateLimitBurst = 1 // Minimum burst of 1
+        log.Printf("Warning: BLECommandRateLimitBurst was invalid or zero, defaulted to %d", cfg.BLECommandRateLimitBurst)
+    }
+
 
     return &cfg, nil
 }
@@ -75,10 +86,10 @@ func main() {
     if err != nil {
         log.Fatalf("Failed to load configuration: %v", err)
     }
-    log.Printf("Configuration loaded: ServerPort=%s, StaticFilesDir=%s, PatternsDir=%s, SchedulesFile=%s",
-        cfg.ServerPort, cfg.StaticFilesDir, cfg.PatternsDir, cfg.SchedulesFile)
+    log.Printf("Configuration loaded: ServerPort=%s, StaticFilesDir=%s, PatternsDir=%s, SchedulesFile=%s, BLECommandRateLimitRate=%.1f/s, BLECommandRateLimitBurst=%d",
+        cfg.ServerPort, cfg.StaticFilesDir, cfg.PatternsDir, cfg.SchedulesFile, cfg.BLECommandRateLimitRate, cfg.BLECommandRateLimitBurst)
 
-    a, err := agent.NewAgent(cfg) // This call will now pass *config.Config, which agent.NewAgent expects
+    a, err := agent.NewAgent(cfg)
     if err != nil {
         log.Fatalf("Failed to create agent: %v", err)
     }
