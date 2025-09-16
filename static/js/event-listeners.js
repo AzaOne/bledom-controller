@@ -14,7 +14,7 @@ export function initEventListeners() {
         const bigint = parseInt(hex.substring(1), 16);
         deviceAPI.setColor((bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255);
     };
-    ui.customColorInput.addEventListener('input', (e) => handleColorChange(e.target.value)); // debounce is in deviceAPI
+    ui.customColorInput.addEventListener('input', (e) => handleColorChange(e.target.value));
 
     document.querySelectorAll('.color-presets button[data-color]').forEach(button => {
         button.addEventListener('click', () => {
@@ -63,7 +63,6 @@ export function initEventListeners() {
     ui.loadPatternBtn.addEventListener('click', () => { if (ui.editorPatternSelector.value) deviceAPI.getPatternCode(ui.editorPatternSelector.value); });
     ui.newPatternBtn.addEventListener('click', () => {
         ui.editorFilename.value = 'new-pattern.lua';
-        ui.codeEditor.setValue('-- Your new Lua pattern code here\n\n');
         ui.editorFilename.focus();
     });
     ui.savePatternBtn.addEventListener('click', () => {
@@ -79,16 +78,12 @@ export function initEventListeners() {
             if (ui.editorFilename.value === filename) ui.newPatternBtn.click();
         }
     });
-
     ui.addScheduleBtn.addEventListener('click', () => {
         const spec = ui.scheduleSpec.value.trim();
         const command = ui.scheduleCommand.value.trim();
         if (spec && command) deviceAPI.addSchedule(spec, command);
         else alert('Please provide both a cron spec and a command.');
     });
-    // The scheduleList event listener is handled in ui.js's updateScheduleList
-    // to dynamically attach to new buttons after list refresh.
-
     ui.darkModeToggle.addEventListener('click', () => {
         document.body.classList.toggle('dark-mode');
         const isDark = document.body.classList.contains('dark-mode');
