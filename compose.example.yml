@@ -1,0 +1,18 @@
+---
+services:
+  bledom-controller:
+    build: .
+    image: localhost/bledom-controller
+    container_name: bledom-controller
+    privileged: true
+    restart: unless-stopped
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+      - ./patterns:/app/patterns
+      - ./schedules.json:/app/schedules.json
+      - ./config.json:/app/config.json
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
