@@ -9,7 +9,9 @@
     
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500" rel="stylesheet">
-    
+
+    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/material-darker.min.css">
 
@@ -37,15 +39,15 @@
             <div class="control-section">
                 <h3>Color & Brightness</h3>
                 <div class="color-presets control-grid">
-                    <h4>Colors</h4>
-                    <button data-color="#FF0000" style="background:#FF0000;" title="Red">R</button>
-                    <button data-color="#00FF00" style="background:#00FF00;" title="Green">G</button>
-                    <button data-color="#0000FF" style="background:#0000FF;" title="Blue">B</button>
-                    <input type="color" id="customColorInput" value="#FF0000" title="Custom Color">
+                	<h4>Picker</h4>
+                	<div id="colorPickerContainer" style="display: flex; justify-content: center; margin-bottom: 20px;"></div>
                 </div>
                 <hr>
                 <div class="color-presets control-grid">
                     <h4>Presets</h4>
+                    <button data-color="#FF0000" style="background:#FF0000;" title="Red">R</button>
+                    <button data-color="#00FF00" style="background:#00FF00;" title="Green">G</button>
+                    <button data-color="#0000FF" style="background:#0000FF;" title="Blue">B</button>
                     <button data-color="#FF4500" style="background:#FF4500;" title="OrangeRed"></button>
                     <button data-color="#FFD700" style="background:#FFD700;" title="Gold"></button>
                     <button data-color="#ADFF2F" style="background:#ADFF2F;" title="GreenYellow"></button>
@@ -55,8 +57,13 @@
                     <button data-color="#FFFFFF" style="background:#FFFFFF; border: 1px solid #ccc;" title="White"></button>
                 </div>
                 <hr>
-                <label>Brightness: <span id="brightnessValue">100%</span></label>
-                <input type="range" id="brightnessSlider" min="1" max="100" value="100">
+                <h4>Brightness</h4>
+
+                <div class="slider-row">
+                    <input type="range" id="brightnessSlider" min="1" max="100" value="100">
+                    <span id="brightnessValue">100%</span>
+                </div>
+                
                 <div class="brightness-presets control-grid">
                     <button data-brightness="2">2%</button>
                     <button data-brightness="5">5%</button>

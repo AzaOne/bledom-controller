@@ -136,6 +136,12 @@
         border-radius: 4px;
     }
 
+#colorPickerContainer {
+    margin: 20px auto;
+    touch-action: none;
+}
+
+
     .docs-section summary { padding: 10px 0; }
     .docs-content { padding-top: 10px; }
     .docs-content p { line-height: 1.6; }
@@ -186,7 +192,29 @@
         color: white;
         border-color: var(--primary-color);
     }
-    
+
+.slider-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.slider-row input[type="range"] {
+    flex-grow: 1;
+    width: auto;
+    margin: 0;
+    cursor: pointer;
+}
+
+.slider-row span {
+    min-width: 45px;
+    text-align: right;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+
     .dark-mode .brightness-presets button {
         border-color: var(--border-dark);
         background-color: var(--card-bg-dark);

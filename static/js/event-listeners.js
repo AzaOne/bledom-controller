@@ -2,33 +2,50 @@
 
 import { ui } from './ui.js';
 import { deviceAPI } from './api.js';
+import { debounce } from './utils.js';
 
 /**
  * Initializes all event listeners for UI elements.
  */
 export function initEventListeners() {
+    // 1. Power Controls
     ui.powerOnBtn.addEventListener('click', () => deviceAPI.setPower(true));
     ui.powerOffBtn.addEventListener('click', () => deviceAPI.setPower(false));
 
-    const handleColorChange = (hex) => {
+    // 2. Iro.js Color Picker Logic
+    const sendColor = (color) => {
+        const { r, g, b } = color.rgb;
+        deviceAPI.setColor(r, g, b);
+    };
+
+    if (ui.colorPicker) {
+        ui.colorPicker.on('input:change', (color) => {
+            debounce(sendColor, [color], 'colorChange', 100); 
+        });
+    }
+
+    // 3. Color Presets
+    const handlePresetClick = (hex) => {
+        if (ui.colorPicker) {
+            ui.colorPicker.color.hexString = hex;
+        }
         const bigint = parseInt(hex.substring(1), 16);
         deviceAPI.setColor((bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255);
     };
-    ui.customColorInput.addEventListener('input', (e) => handleColorChange(e.target.value));
 
     document.querySelectorAll('.color-presets button[data-color]').forEach(button => {
         button.addEventListener('click', () => {
-            const color = button.dataset.color;
-            handleColorChange(color);
-            ui.customColorInput.value = color;
+            handlePresetClick(button.dataset.color);
         });
     });
 
+    // 4. Brightness Slider
     ui.brightnessSlider.addEventListener('input', (e) => {
         ui.brightnessValue.textContent = `${e.target.value}%`;
         deviceAPI.setBrightness(e.target.value)
     });
 
+    // 5. Brightness Presets
     document.querySelectorAll('.brightness-presets button').forEach(button => {
         button.addEventListener('click', () => {
             const val = button.dataset.brightness;
@@ -38,6 +55,7 @@ export function initEventListeners() {
         });
     });
 
+    // 6. Speed Slider
     ui.speedSlider.addEventListener('input', (e) => {
         ui.speedValue.textContent = `${e.target.value}%`;
         const maxDuration = 15; const minDuration = 0.2;
@@ -50,6 +68,7 @@ export function initEventListeners() {
         });
     });
 
+    // 7. Other settings
     ui.syncTimeBtn.addEventListener('click', deviceAPI.syncTime);
     ui.setRgbOrderBtn.addEventListener('click', () => {
         deviceAPI.setRgbOrder(parseInt(ui.wire1.value), parseInt(ui.wire2.value), parseInt(ui.wire3.value));
@@ -57,6 +76,7 @@ export function initEventListeners() {
     ui.setScheduleBtn.addEventListener('click', () => deviceAPI.setDeviceSchedule(true));
     ui.clearScheduleBtn.addEventListener('click', () => deviceAPI.setDeviceSchedule(false));
     
+    // 8. Patterns & Scheduler
     ui.runPatternBtn.addEventListener('click', () => { if (ui.patternSelector.value) deviceAPI.runPattern(ui.patternSelector.value); });
     ui.stopPatternBtn.addEventListener('click', deviceAPI.stopPattern);
 

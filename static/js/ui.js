@@ -11,7 +11,7 @@ export const ui = {
 
     powerOnBtn: document.getElementById('powerOnBtn'),
     powerOffBtn: document.getElementById('powerOffBtn'),
-    customColorInput: document.getElementById('customColorInput'),
+    colorPickerContainer: document.getElementById('colorPickerContainer'),
     brightnessSlider: document.getElementById('brightnessSlider'),
     brightnessValue: document.getElementById('brightnessValue'),
 
@@ -48,6 +48,31 @@ export const ui = {
     // CodeMirror instance will be stored here
     codeEditor: null,
 };
+
+/**
+ * Initializes the iro.js Color Picker.
+ */
+export function initColorPicker() {
+    ui.colorPicker = new iro.ColorPicker("#colorPickerContainer", {
+        width: 250,
+        color: "#ff0000",
+        borderWidth: 2,
+        borderColor: "#fff",
+        layout: [
+            { 
+              component: iro.ui.Wheel,
+              options: {} 
+            },
+            { 
+              component: iro.ui.Slider,
+              options: {
+                sliderType: 'value'
+              }
+            }
+        ]
+    });
+    return ui.colorPicker;
+}
 
 /**
  * Initializes the CodeMirror editor.

@@ -1,6 +1,6 @@
 // static/js/main.js
 
-import { ui, initCodeMirror, setStatus, renderHardwarePatterns, populateTimePickers, updatePatternLists, updateScheduleList, initDarkMode } from './ui.js';
+import { ui, initCodeMirror, initColorPicker, setStatus, renderHardwarePatterns, populateTimePickers, updatePatternLists, updateScheduleList, initDarkMode } from './ui.js';
 import { deviceAPI, setSocket } from './api.js';
 import { initEventListeners } from './event-listeners.js';
 
@@ -9,7 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize UI components and state
     initCodeMirror();
-    initEventListeners(); // Event listeners now depend on `ui` and `deviceAPI`
+    initColorPicker();
+    initEventListeners();
     renderHardwarePatterns(deviceAPI.setHardwarePattern); // Pass the API function needed for rendering
     populateTimePickers();
     initDarkMode();
