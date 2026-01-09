@@ -43,11 +43,12 @@
                 	<div id="colorPickerContainer" style="display: flex; justify-content: center; margin-bottom: 20px;"></div>
                 </div>
                 <hr>
+                <h4 style="margin-bottom: 10px;">Presets</h4>
                 <div class="color-presets control-grid">
-                    <h4>Presets</h4>
-                    <button data-color="#FF0000" style="background:#FF0000;" title="Red">R</button>
-                    <button data-color="#00FF00" style="background:#00FF00;" title="Green">G</button>
-                    <button data-color="#0000FF" style="background:#0000FF;" title="Blue">B</button>
+                    <!-- Fixed Presets -->
+                    <button data-color="#FF0000" style="background:#FF0000;" title="Red"></button>
+                    <button data-color="#00FF00" style="background:#00FF00;" title="Green"></button>
+                    <button data-color="#0000FF" style="background:#0000FF;" title="Blue"></button>
                     <button data-color="#FF4500" style="background:#FF4500;" title="OrangeRed"></button>
                     <button data-color="#FFD700" style="background:#FFD700;" title="Gold"></button>
                     <button data-color="#ADFF2F" style="background:#ADFF2F;" title="GreenYellow"></button>
@@ -55,7 +56,9 @@
                     <button data-color="#9400D3" style="background:#9400D3;" title="DarkViolet"></button>
                     <button data-color="#FF1493" style="background:#FF1493;" title="DeepPink"></button>
                     <button data-color="#FFFFFF" style="background:#FFFFFF; border: 1px solid #ccc;" title="White"></button>
+                    <div id="customPresetsContainer" style="display: contents;"></div>
                 </div>
+                <div style="font-size: 0.75em; color: #888; margin-top: 8px; text-align: right;">* Right-click a custom preset to delete</div>
                 <hr>
                 <h4>Brightness</h4>
 

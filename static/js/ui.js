@@ -15,6 +15,9 @@ export const ui = {
     brightnessSlider: document.getElementById('brightnessSlider'),
     brightnessValue: document.getElementById('brightnessValue'),
 
+    // Presets Container
+    customPresetsContainer: document.getElementById('customPresetsContainer'),
+
     patternGrid: document.getElementById('patternGrid'),
     speedSlider: document.getElementById('speedSlider'),
     speedValue: document.getElementById('speedValue'),
@@ -188,4 +191,103 @@ export function initDarkMode() {
     }
     const isDark = document.body.classList.contains('dark-mode');
     document.querySelector('#darkModeToggle .material-icons').textContent = isDark ? 'light_mode' : 'dark_mode';
+}
+
+/**
+ * Renders the custom color preset buttons AND the Add button at the end.
+ * Includes Touch Support (Long Press to Delete).
+ * @param {string[]} presets Array of hex color strings.
+ * @param {Function} onApply Callback when a preset is clicked.
+ * @param {Function} onDelete Callback when a preset is right-clicked or long-pressed.
+ * @param {Function} onAdd Callback when the + button is clicked.
+ */
+export function renderCustomPresets(presets, onApply, onDelete, onAdd) {
+    ui.customPresetsContainer.innerHTML = '';
+    
+    // 1. Render Saved Presets
+    if (presets) {
+        presets.forEach((hex, index) => {
+            const button = document.createElement('button');
+            button.style.backgroundColor = hex;
+            button.title = `Custom: ${hex}`;
+            button.dataset.color = hex;
+            
+            // Add border to light colors
+            //const isLight = (hex.toLowerCase() === '#ffffff') || (parseInt(hex.substring(1), 16) > 0xEEEEEE);
+            //if (isLight) {
+            //    button.style.border = '1px solid #ccc';
+            //}
+
+            // --- Interaction Logic (Mouse & Touch) ---
+            let pressTimer = null;
+            let isLongPress = false;
+
+            // 1. Right Click (Desktop)
+            button.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                // Prevent double firing if the browser maps long-press to contextmenu automatically
+                if (!isLongPress) {
+                    if (confirm(`Delete custom preset ${hex}?`)) {
+                        onDelete(index);
+                    }
+                }
+            });
+
+            // 2. Touch Start (Start Timer)
+            button.addEventListener('touchstart', (e) => {
+                isLongPress = false;
+                pressTimer = setTimeout(() => {
+                    isLongPress = true;
+                    // Haptic feedback if supported
+                    if (navigator.vibrate) navigator.vibrate(50);
+                    if (confirm(`Delete custom preset ${hex}?`)) {
+                        onDelete(index);
+                    }
+                }, 600); // 600ms threshold for long press
+            }, { passive: true });
+
+            // 3. Touch End / Move (Cancel Timer)
+            const cancelPress = () => {
+                if (pressTimer) clearTimeout(pressTimer);
+            };
+            button.addEventListener('touchend', cancelPress);
+            button.addEventListener('touchmove', cancelPress); // Cancel if user tries to scroll
+
+            // 4. Click / Tap (Apply Color)
+            button.addEventListener('click', (e) => {
+                // If we just triggered a long press delete, ignore this click
+                if (isLongPress) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+                onApply(hex);
+            });
+
+            ui.customPresetsContainer.appendChild(button);
+        });
+    }
+
+    // 2. Render the "+" Button at the end
+    const addBtn = document.createElement('button');
+    addBtn.innerHTML = '<span class="material-icons" style="font-size: 24px; vertical-align: middle;">add</span>';
+    addBtn.title = "Save current color from picker";
+    addBtn.style.backgroundColor = "#eee"; // Light gray background
+    addBtn.style.color = "#555";
+    addBtn.style.border = "1px dashed #aaa"; // Dashed border to distinguish it
+    addBtn.style.display = "flex";
+    addBtn.style.alignItems = "center";
+    addBtn.style.justifyContent = "center";
+    
+    // Standard click for Add button is sufficient
+    addBtn.addEventListener('click', onAdd);
+    
+    // Dark mode style adjustment
+    if (document.body.classList.contains('dark-mode')) {
+        addBtn.style.backgroundColor = "#444";
+        addBtn.style.color = "#ccc";
+        addBtn.style.borderColor = "#666";
+    }
+
+    ui.customPresetsContainer.appendChild(addBtn);
 }

@@ -45,11 +45,11 @@ local transitions = {
   { name="dusk",
     at = { hour = 22, min = 0 },
     from = { color={0,255,0}, brightness = BR_MAX },
-    to   = { color={0,255,0}, brightness = BR_DUSK },
+    to   = { color={255,0,0}, brightness = BR_DUSK },
     duration_ms = DEFAULT_TRANS_MS },
   { name="evening",
     at = { hour = 0, min = 0 },
-    from = { color={0,255,0}, brightness = BR_DUSK },
+    from = { color={255,0,0}, brightness = BR_DUSK },
     to   = { color={255,0,0}, brightness = BR_MIN },
     duration_ms = DEFAULT_TRANS_MS },
 
@@ -58,7 +58,7 @@ local transitions = {
     target = { color = {0,255,0}, brightness = BR_MAX } },
   { name="dusk_period",
     range = { start = { hour = 22 }, finish = { hour = 0 } },
-    target = { color = {0,255,0}, brightness = BR_DUSK } },
+    target = { color = {255,0,0}, brightness = BR_DUSK } },
   { name="night_period",
     range = { start = { hour = 0 }, finish = { hour = 9 } },
     target = { color = {255,0,0}, brightness = BR_MIN } }

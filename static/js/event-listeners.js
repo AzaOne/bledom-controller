@@ -1,6 +1,6 @@
 // static/js/event-listeners.js
 
-import { ui } from './ui.js';
+import { ui, renderCustomPresets } from './ui.js';
 import { deviceAPI } from './api.js';
 import { debounce } from './utils.js';
 
@@ -24,20 +24,62 @@ export function initEventListeners() {
         });
     }
 
-    // 3. Color Presets
+    // 3. Color Presets (Fixed & Custom)
+
+    // Helper: Apply color to device + update picker
     const handlePresetClick = (hex) => {
-        if (ui.colorPicker) {
-            ui.colorPicker.color.hexString = hex;
-        }
+        if (ui.colorPicker) ui.colorPicker.color.hexString = hex;
         const bigint = parseInt(hex.substring(1), 16);
         deviceAPI.setColor((bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255);
     };
 
+    // 3a. Listeners for Fixed Presets
     document.querySelectorAll('.color-presets button[data-color]').forEach(button => {
         button.addEventListener('click', () => {
             handlePresetClick(button.dataset.color);
         });
     });
+
+    // 3b. Custom Presets Logic
+    const STORAGE_KEY = 'ble_custom_presets';
+
+    // Logic for "Add (+)" button
+    const handleAddColor = () => {
+        if (!ui.colorPicker) return;
+        
+        const currentColor = ui.colorPicker.color.hexString;
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const presets = stored ? JSON.parse(stored) : [];
+
+        if (!presets.includes(currentColor)) {
+            presets.push(currentColor);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+            loadAndRender(); // Re-render to move the + button
+        } else {
+            alert('This color is already in your presets.');
+        }
+    };
+
+    // Logic for Rendering
+    const loadAndRender = () => {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const presets = stored ? JSON.parse(stored) : [];
+        
+        renderCustomPresets(
+            presets, 
+            (hex) => handlePresetClick(hex), // onApply
+            (index) => {                     // onDelete
+                presets.splice(index, 1);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+                loadAndRender();
+            },
+            handleAddColor                   // onAdd
+        );
+    };
+
+    // Initial Load
+    loadAndRender();
+
 
     // 4. Brightness Slider
     ui.brightnessSlider.addEventListener('input', (e) => {
@@ -109,5 +151,8 @@ export function initEventListeners() {
         const isDark = document.body.classList.contains('dark-mode');
         localStorage.setItem('darkMode', isDark);
         document.querySelector('#darkModeToggle .material-icons').textContent = isDark ? 'light_mode' : 'dark_mode';
+        
+        // Re-render presets to update Add button color/border for dark mode
+        loadAndRender(); 
     });
 }
