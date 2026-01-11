@@ -62,15 +62,15 @@ export function initColorPicker() {
         borderWidth: 2,
         borderColor: "#fff",
         layout: [
-            { 
-              component: iro.ui.Wheel,
-              options: {} 
+            {
+                component: iro.ui.Wheel,
+                options: {}
             },
-            { 
-              component: iro.ui.Slider,
-              options: {
-                sliderType: 'value'
-              }
+            {
+                component: iro.ui.Slider,
+                options: {
+                    sliderType: 'value'
+                }
             }
         ]
     });
@@ -143,9 +143,9 @@ export function updatePatternLists(patterns) {
     const createOptions = (selectElem) => {
         const currentVal = selectElem.value;
         selectElem.innerHTML = '';
-         if (patterns && patterns.length > 0) {
+        if (patterns && patterns.length > 0) {
             patterns.forEach(name => selectElem.add(new Option(name, name)));
-            if(patterns.includes(currentVal)) selectElem.value = currentVal;
+            if (patterns.includes(currentVal)) selectElem.value = currentVal;
             else if (patterns.length > 0) selectElem.value = patterns[0]; // Select first if current not found
         } else {
             selectElem.innerHTML = '<option disabled>No patterns found</option>';
@@ -201,22 +201,23 @@ export function initDarkMode() {
  * @param {Function} onDelete Callback when a preset is right-clicked or long-pressed.
  * @param {Function} onAdd Callback when the + button is clicked.
  */
-export function renderCustomPresets(presets, onApply, onDelete, onAdd) {
+
+export function renderPresets(presets, onApply, onDelete, onAdd) {
     ui.customPresetsContainer.innerHTML = '';
-    
+
     // 1. Render Saved Presets
     if (presets) {
         presets.forEach((hex, index) => {
             const button = document.createElement('button');
             button.style.backgroundColor = hex;
-            button.title = `Custom: ${hex}`;
+            button.title = `${hex}`;
             button.dataset.color = hex;
-            
-            // Add border to light colors
-            //const isLight = (hex.toLowerCase() === '#ffffff') || (parseInt(hex.substring(1), 16) > 0xEEEEEE);
-            //if (isLight) {
+
+            // Add border to light colors if needed
+            // const isLight = (hex.toLowerCase() === '#ffffff') || (parseInt(hex.substring(1), 16) > 0xEEEEEE);
+            // if (isLight) {
             //    button.style.border = '1px solid #ccc';
-            //}
+            // }
 
             // --- Interaction Logic (Mouse & Touch) ---
             let pressTimer = null;
@@ -227,7 +228,7 @@ export function renderCustomPresets(presets, onApply, onDelete, onAdd) {
                 e.preventDefault();
                 // Prevent double firing if the browser maps long-press to contextmenu automatically
                 if (!isLongPress) {
-                    if (confirm(`Delete custom preset ${hex}?`)) {
+                    if (confirm(`Delete preset ${hex}?`)) {
                         onDelete(index);
                     }
                 }
@@ -240,7 +241,7 @@ export function renderCustomPresets(presets, onApply, onDelete, onAdd) {
                     isLongPress = true;
                     // Haptic feedback if supported
                     if (navigator.vibrate) navigator.vibrate(50);
-                    if (confirm(`Delete custom preset ${hex}?`)) {
+                    if (confirm(`Delete preset ${hex}?`)) {
                         onDelete(index);
                     }
                 }, 600); // 600ms threshold for long press
@@ -271,17 +272,17 @@ export function renderCustomPresets(presets, onApply, onDelete, onAdd) {
     // 2. Render the "+" Button at the end
     const addBtn = document.createElement('button');
     addBtn.innerHTML = '<span class="material-icons" style="font-size: 24px; vertical-align: middle;">add</span>';
-    addBtn.title = "Save current color from picker";
+    addBtn.title = "Save current color";
     addBtn.style.backgroundColor = "#eee"; // Light gray background
     addBtn.style.color = "#555";
     addBtn.style.border = "1px dashed #aaa"; // Dashed border to distinguish it
     addBtn.style.display = "flex";
     addBtn.style.alignItems = "center";
     addBtn.style.justifyContent = "center";
-    
+
     // Standard click for Add button is sufficient
     addBtn.addEventListener('click', onAdd);
-    
+
     // Dark mode style adjustment
     if (document.body.classList.contains('dark-mode')) {
         addBtn.style.backgroundColor = "#444";

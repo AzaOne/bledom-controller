@@ -1,22 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLEDOM Controller</title>
-    
+
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    
+
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/material-darker.min.css">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/material-darker.min.css">
 
-    <link rel="stylesheet" href="./css/styles.css"> 
+    <link rel="stylesheet" href="./css/styles.css">
 </head>
+
 <body>
     <div id="appContainer">
         <header>
@@ -39,26 +42,17 @@
             <div class="control-section">
                 <h3>Color & Brightness</h3>
                 <div class="color-presets control-grid">
-                	<h4>Picker</h4>
-                	<div id="colorPickerContainer" style="display: flex; justify-content: center; margin-bottom: 20px;"></div>
+                    <h4>Picker</h4>
+                    <div id="colorPickerContainer" style="display: flex; justify-content: center; margin-bottom: 20px;">
+                    </div>
                 </div>
                 <hr>
                 <h4 style="margin-bottom: 10px;">Presets</h4>
                 <div class="color-presets control-grid">
-                    <!-- Fixed Presets -->
-                    <button data-color="#FF0000" style="background:#FF0000;" title="Red"></button>
-                    <button data-color="#00FF00" style="background:#00FF00;" title="Green"></button>
-                    <button data-color="#0000FF" style="background:#0000FF;" title="Blue"></button>
-                    <button data-color="#FF4500" style="background:#FF4500;" title="OrangeRed"></button>
-                    <button data-color="#FFD700" style="background:#FFD700;" title="Gold"></button>
-                    <button data-color="#ADFF2F" style="background:#ADFF2F;" title="GreenYellow"></button>
-                    <button data-color="#00CED1" style="background:#00CED1;" title="DarkTurquoise"></button>
-                    <button data-color="#9400D3" style="background:#9400D3;" title="DarkViolet"></button>
-                    <button data-color="#FF1493" style="background:#FF1493;" title="DeepPink"></button>
-                    <button data-color="#FFFFFF" style="background:#FFFFFF; border: 1px solid #ccc;" title="White"></button>
                     <div id="customPresetsContainer" style="display: contents;"></div>
                 </div>
-                <div style="font-size: 0.75em; color: #888; margin-top: 8px; text-align: right;">* Long Press or right-click or a custom preset to delete</div>
+                <div style="font-size: 0.75em; color: #888; margin-top: 8px; text-align: right;">* Long Press or
+                    right-click or a custom preset to delete</div>
                 <hr>
                 <h4>Brightness</h4>
 
@@ -66,7 +60,7 @@
                     <input type="range" id="brightnessSlider" min="1" max="100" value="100">
                     <span id="brightnessValue">100%</span>
                 </div>
-                
+
                 <div class="brightness-presets control-grid">
                     <button data-brightness="2">2%</button>
                     <button data-brightness="5">5%</button>
@@ -103,7 +97,8 @@
             <div class="control-section">
                 <h3>Pattern Editor</h3>
                 <div class="editor-controls">
-                    <label style="flex-grow: 1;">Load Pattern to Edit: <select id="editorPatternSelector"></select></label>
+                    <label style="flex-grow: 1;">Load Pattern to Edit: <select
+                            id="editorPatternSelector"></select></label>
                 </div>
                 <div class="editor-controls">
                     <button id="loadPatternBtn">Load</button>
@@ -123,7 +118,8 @@
                 <label>Schedule (Cron Spec):</label>
                 <input type="text" id="scheduleSpec" placeholder="* * * * *">
                 <label>Command:</label>
-                <input type="text" id="scheduleCommand" placeholder="power off / pattern sunrise.lua / lua set_color(255,0,0)">
+                <input type="text" id="scheduleCommand"
+                    placeholder="power off / pattern sunrise.lua / lua set_color(255,0,0)">
                 <button id="addScheduleBtn">Add Schedule</button>
                 <h4>Current Schedules</h4>
                 <ul id="scheduleList">
@@ -132,42 +128,86 @@
             </div>
 
             <div class="control-section docs-section">
-                <summary><h3>Documentation</h3></summary>
-                    <h4>Lua Pattern API</h4>
-                    Create custom animations by writing Lua scripts. The agent provides several global functions you can call from your script.
-                    <ul>
-                        <li><code>set_power(boolean)</code><br>Turns the LEDs on or off. Example: <code>set_power(true)</code></li>
-                        <li><code>set_color(r, g, b)</code><br>Sets the static color. Values are 0-255. Example: <code>set_color(255, 0, 100)</code></li>
-                        <li><code>set_brightness(value)</code><br>Sets the brightness. Value is 1-100. Example: <code>set_brightness(75)</code></li>
-                        <li><code>sleep(milliseconds)</code><br>Pauses the script for a given duration. Example: <code>sleep(50)</code></li>
-                        <li><code>should_stop()</code><br><strong>(For pattern files only)</strong> Returns <code>true</code> if the user has clicked "Stop Pattern". Check this in long loops to make your pattern responsive. Example: <code>if should_stop() then return end</code></li>
-                        <li><code>print(message)</code><br>Prints a message to the Go agent's console log, useful for debugging. Example: <code>print("Loop: " .. i)</code></li>
-                    </ul>
-                    <h4>High-Level Effects</h4>
-                    These functions perform complex animations and will block your script until they are complete or cancelled.
-                    <ul>
-                         <li><code>breathe(duration_ms)</code><br>Performs a smooth "breathing" pulse from 1% to 100% brightness and back. The color should be set beforehand. Example: <code>set_color(0, 255, 255); breathe(4000) -- 4 second cyan pulse</code></li>
-                         <li><code>strobe(r, g, b, duration_ms, frequency_hz)</code><br>Flashes the specified color for a total duration. Example: <code>strobe(255, 255, 255, 5000, 10) -- 5 seconds of white strobe at 10 Hz</code></li>
-                         <li><code>fade(r1, g1, b1, r2, g2, b2, duration_ms)</code><br>Smoothly transitions from a start color to an end color. Example: <code>fade(255, 0, 0, 0, 0, 255, 3000) -- 3 second fade from red to blue</code></li>
-                         <li><code>fade_brightness(start_brightness, end_brightness, duration_ms)</code><br>Smoothly transitions the brightness from a start value to an end value. Brightness values are 1-100. The color should be set beforehand. Example: <code>set_color(255, 255, 0); fade_brightness(1, 100, 1500) -- 1.5 second fade in to yellow</code> or <code>fade_brightness(100, 20, 2000) -- 2 second fade out to 20% brightness</code></li>
-                    </ul>
-                    <hr>
-                    <h4>Scheduler</h4>
-                    The scheduler uses standard Cron syntax to automate commands. You can trigger power events, run full pattern files, or execute light Lua scripts.
-                    <ul>
-                        <li><strong>Cron Syntax:</strong> <code>MINUTE HOUR DAY-OF-MONTH MONTH DAY-OF-WEEK</code>.<br><em>Example:</em> <code>0 22 * * 1-5</code> means "at 22:00 (10 PM) on Monday through Friday".<br><a href="https://crontab.guru/" target="_blank" rel="noopener">Use crontab.guru to easily build expressions.</a></li>
-                        <li><strong>Available Commands:</strong>
-                            <ul>
-                                <li><code>power on</code> / <code>power off</code> - Turns the LEDs on or off.</li>
-                                <li><code>pattern [filename.lua]</code> - Runs a full Lua pattern file. Example: <code>pattern sunrise.lua</code></li>
-                                <li><code>lua [lua_code]</code> - Executes a single line of Lua code.<br><em>Example 1: Set color to purple.</em> <code>lua set_color(128, 0, 255)</code><br><em>Example 2: A 5-second blue flash.</em> <code>lua set_power(true); set_color(0, 0, 255); sleep(5000); set_power(false)</code></li>
-                            </ul>
-                        </li>
-                    </ul>
+                <summary>
+                    <h3>Documentation</h3>
+                </summary>
+                <h4>Lua Pattern API</h4>
+                Create custom animations by writing Lua scripts. The agent provides several global functions you can
+                call from your script.
+                <ul>
+                    <li><code>set_power(boolean)</code><br>Turns the LEDs on or off. Example:
+                        <code>set_power(true)</code>
+                    </li>
+                    <li><code>set_color(r, g, b)</code><br>Sets the static color. Values are 0-255. Example:
+                        <code>set_color(255, 0, 100)</code>
+                    </li>
+                    <li><code>set_brightness(value)</code><br>Sets the brightness. Value is 1-100. Example:
+                        <code>set_brightness(75)</code>
+                    </li>
+                    <li><code>sleep(milliseconds)</code><br>Pauses the script for a given duration. Example:
+                        <code>sleep(50)</code>
+                    </li>
+                    <li><code>should_stop()</code><br><strong>(For pattern files only)</strong> Returns
+                        <code>true</code> if the user has clicked "Stop Pattern". Check this in long loops to make your
+                        pattern responsive. Example: <code>if should_stop() then return end</code>
+                    </li>
+                    <li><code>print(message)</code><br>Prints a message to the Go agent's console log, useful for
+                        debugging. Example: <code>print("Loop: " .. i)</code></li>
+                </ul>
+                <h4>High-Level Effects</h4>
+                These functions perform complex animations and will block your script until they are complete or
+                cancelled.
+                <ul>
+                    <li><code>breathe(duration_ms)</code><br>Performs a smooth "breathing" pulse from 1% to 100%
+                        brightness and back. The color should be set beforehand. Example:
+                        <code>set_color(0, 255, 255); breathe(4000) -- 4 second cyan pulse</code>
+                    </li>
+                    <li><code>strobe(r, g, b, duration_ms, frequency_hz)</code><br>Flashes the specified color for a
+                        total duration. Example:
+                        <code>strobe(255, 255, 255, 5000, 10) -- 5 seconds of white strobe at 10 Hz</code>
+                    </li>
+                    <li><code>fade(r1, g1, b1, r2, g2, b2, duration_ms)</code><br>Smoothly transitions from a start
+                        color to an end color. Example:
+                        <code>fade(255, 0, 0, 0, 0, 255, 3000) -- 3 second fade from red to blue</code>
+                    </li>
+                    <li><code>fade_brightness(start_brightness, end_brightness, duration_ms)</code><br>Smoothly
+                        transitions the brightness from a start value to an end value. Brightness values are 1-100. The
+                        color should be set beforehand. Example:
+                        <code>set_color(255, 255, 0); fade_brightness(1, 100, 1500) -- 1.5 second fade in to yellow</code>
+                        or <code>fade_brightness(100, 20, 2000) -- 2 second fade out to 20% brightness</code>
+                    </li>
+                </ul>
+                <hr>
+                <h4>Scheduler</h4>
+                The scheduler uses standard Cron syntax to automate commands. You can trigger power events, run full
+                pattern files, or execute light Lua scripts.
+                <ul>
+                    <li><strong>Cron Syntax:</strong>
+                        <code>MINUTE HOUR DAY-OF-MONTH MONTH DAY-OF-WEEK</code>.<br><em>Example:</em>
+                        <code>0 22 * * 1-5</code> means "at 22:00 (10 PM) on Monday through Friday".<br><a
+                            href="https://crontab.guru/" target="_blank" rel="noopener">Use crontab.guru to easily build
+                            expressions.</a>
+                    </li>
+                    <li><strong>Available Commands:</strong>
+                        <ul>
+                            <li><code>power on</code> / <code>power off</code> - Turns the LEDs on or off.</li>
+                            <li><code>pattern [filename.lua]</code> - Runs a full Lua pattern file. Example:
+                                <code>pattern sunrise.lua</code>
+                            </li>
+                            <li><code>lua [lua_code]</code> - Executes a single line of Lua code.<br><em>Example 1: Set
+                                    color to purple.</em> <code>lua set_color(128, 0, 255)</code><br><em>Example 2: A
+                                    5-second blue flash.</em>
+                                <code>lua set_power(true); set_color(0, 0, 255); sleep(5000); set_power(false)</code>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
             </div>
 
             <div class="control-section">
-                <summary><h3>Advanced Device Settings</h3></summary>
+                <summary>
+                    <h3>Advanced Device Settings</h3>
+                </summary>
                 <h4>On-Device Scheduling</h4>
                 <button id="syncTimeBtn">Sync Time</button>
                 <button id="clearScheduleBtn" style="background:var(--warn-color)">Clear Device Schedule</button>
@@ -196,9 +236,21 @@
                 <hr>
                 <h4>RGB Wire Order</h4>
                 <div class="control-grid">
-                    <label>1st Wire: <select id="wire1"><option value="1" selected>Red</option><option value="2">Green</option><option value="3">Blue</option></select></label>
-                    <label>2nd Wire: <select id="wire2"><option value="1">Red</option><option value="2" selected>Green</option><option value="3">Blue</option></select></label>
-                    <label>3rd Wire: <select id="wire3"><option value="1">Red</option><option value="2">Green</option><option value="3" selected>Blue</option></select></label>
+                    <label>1st Wire: <select id="wire1">
+                            <option value="1" selected>Red</option>
+                            <option value="2">Green</option>
+                            <option value="3">Blue</option>
+                        </select></label>
+                    <label>2nd Wire: <select id="wire2">
+                            <option value="1">Red</option>
+                            <option value="2" selected>Green</option>
+                            <option value="3">Blue</option>
+                        </select></label>
+                    <label>3rd Wire: <select id="wire3">
+                            <option value="1">Red</option>
+                            <option value="2">Green</option>
+                            <option value="3" selected>Blue</option>
+                        </select></label>
                 </div>
                 <button id="setRgbOrderBtn">Set Order</button>
             </div>
@@ -213,7 +265,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/active-line.min.js"></script>
-    
+
     <script type="module" src="./js/main.js"></script>
 </body>
+
 </html>
