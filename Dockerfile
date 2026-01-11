@@ -1,7 +1,7 @@
 # --- Stage 1: Build ---
 FROM --platform=$BUILDPLATFORM golang:1.25.1-bookworm AS builder
 
-RUN apt-get update && apt-get install -y gcc libdbus-1-dev
+RUN apt-get update && apt-get install -y gcc libdbus-1-dev git
 
 WORKDIR /app
 
@@ -17,8 +17,10 @@ ARG TARGETARCH
 # This makes subsequent builds significantly faster.
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
+    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") && \
+    DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') && \
     CGO_ENABLED=1 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
-    -ldflags="-s -w" \
+    -ldflags="-s -w -X 'main.commit=${COMMIT}' -X 'main.date=${DATE}'" \
     -o /app/bledom-controller \
     ./cmd/agent/main.go
 
