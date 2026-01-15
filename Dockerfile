@@ -6,7 +6,12 @@ RUN apt-get update && apt-get install -y gcc libdbus-1-dev git
 WORKDIR /app
 
 COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+        if [ -f /app/build/bledom-controller-${TARGETOS}-${TARGETARCH} ]; then \
+        echo "Not use cache by use prebuild binary"; \
+        else \
+        go mod download; \
+        fi
 
 COPY . .
 
@@ -15,14 +20,25 @@ ARG TARGETARCH
 
 # Use cache mounts for the go build cache and module cache.
 # This makes subsequent builds significantly faster.
+# if build dir is not empty use binary from it
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") && \
-    DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') && \
-    CGO_ENABLED=1 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
-    -ldflags="-s -w -X 'main.commit=${COMMIT}' -X 'main.date=${DATE}'" \
-    -o /app/bledom-controller \
-    ./cmd/agent/main.go
+    if [ -f /app/build/bledom-controller-${TARGETOS}-${TARGETARCH} ]; then \
+        echo "Using pre-built binary for ${TARGETOS}/${TARGETARCH}"; \
+        cp /app/build/bledom-controller-${TARGETOS}-${TARGETARCH} /app/bledom-controller; \
+    elif [ -d /app/build ]; then \
+        echo "Build dir exists but binary not found for ${TARGETOS}/${TARGETARCH}. Contents:"; \
+        ls -l /app/build; \
+        exit 1; \
+    else \
+        echo "Building from source..."; \
+        COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") && \
+        DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') && \
+        CGO_ENABLED=1 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+        -ldflags="-s -w -X 'main.commit=${COMMIT}' -X 'main.date=${DATE}'" \
+        -o /app/bledom-controller \
+        ./cmd/agent/main.go; \
+    fi
 
 # --- Stage 2: Final Image ---
 FROM debian:bookworm-slim
