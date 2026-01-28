@@ -18,5 +18,15 @@
   "BLECommandRateLimitBurst": 25,
 
   "PatternsDir": "patterns",
-  "SchedulesFile": "schedules.json"
+  "SchedulesFile": "schedules.json",
+
+  "MQTTEnabled": true,
+  "MQTTBroker": "tcp://192.168.1.10:1883",
+  "MQTTUsername": "",
+  "MQTTPassword": "",
+  "MQTTClientId": "bledom-controller",
+  "MQTTTopicPrefix": "bledom",
+
+  "MQTTHADiscoveryEnabled": true,
+  "MQTTHADiscoveryPrefix": "homeassistant"
 }

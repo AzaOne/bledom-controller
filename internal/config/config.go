@@ -19,4 +19,15 @@ type Config struct {
     // File system settings
     PatternsDir   string `json:"PatternsDir"`
     SchedulesFile string `json:"SchedulesFile"`
+    
+    // MQTT settings
+    MQTTEnabled     bool   `json:"MQTTEnabled"`
+    MQTTBroker      string `json:"MQTTBroker"`      // e.g., "tcp://localhost:1883"
+    MQTTUsername    string `json:"MQTTUsername"`
+    MQTTPassword    string `json:"MQTTPassword"`
+    MQTTClientId    string `json:"MQTTClientId"`
+    MQTTTopicPrefix string `json:"MQTTTopicPrefix"` // e.g., "bledom"
+    
+    MQTTHADiscoveryEnabled bool   `json:"MQTTHADiscoveryEnabled"` // Enable Auto Discovery
+    MQTTHADiscoveryPrefix  string `json:"MQTTHADiscoveryPrefix"`  // Default: "homeassistant"
 }

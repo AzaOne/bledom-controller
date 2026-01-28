@@ -1,5 +1,5 @@
 # --- Stage 1: Build ---
-FROM --platform=$BUILDPLATFORM golang:1.25.1-bookworm AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25.1-trixie AS builder
 
 RUN apt-get update && apt-get install -y gcc libdbus-1-dev git
 
@@ -41,7 +41,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     fi
 
 # --- Stage 2: Final Image ---
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \

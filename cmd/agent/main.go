@@ -34,6 +34,16 @@ func LoadConfig(path string) (*config.Config, error) {
 		BLECommandRateLimitBurst: 25,
 		PatternsDir:              "patterns",
 		SchedulesFile:            "schedules.json",
+
+		// MQTT Defaults
+		MQTTEnabled:     false,
+		MQTTBroker:      "tcp://localhost:1883",
+		MQTTClientId:    "bledom-controller",
+		MQTTTopicPrefix: "bledom",
+
+		// HA Discovery Defaults
+		MQTTHADiscoveryEnabled: true,
+		MQTTHADiscoveryPrefix:  "homeassistant",
 	}
 
 	data, err := os.ReadFile(path)
