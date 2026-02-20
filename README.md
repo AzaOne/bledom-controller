@@ -15,6 +15,7 @@ An advanced web-based controller for "BLEDOM" Bluetooth Low Energy (BLE) LED lig
 - **On-Device Scheduling:** Sync the device's time and set its internal on/off schedule.
 - **Dockerized & Cross-Platform:** Easy deployment using Docker and Docker Compose. Build scripts are included for native cross-platform binaries (Linux AMD64/ARM64).
 - **Automatic Reconnection:** The agent constantly monitors the BLE connection and will automatically reconnect and resume patterns if the device disconnects.
+- **Event-Driven Architecture:** Robust internal design featuring a centralized state, event bus, and a unified command pattern for reliable operation and easy extensibility.
 
 ## Getting Started
 
@@ -130,6 +131,7 @@ If you prefer to run the agent without Docker:
 
 - `cmd/agent/main.go`: Application entry point.
 - `internal/agent`: Core agent logic, ties all services together.
+- `internal/core`: Core domain models, state management, event bus, and unified command pattern.
 - `internal/ble`: Handles Bluetooth LE connection and command packets.
 - `internal/lua`: The Lua scripting engine and Go function bindings.
 - `internal/mqtt`: Handles MQTT connections, HA Auto-Discovery, and message mapping.
