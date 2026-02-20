@@ -1,6 +1,7 @@
 # Compiled binaries
 bledom-controller
 /build/
+/bin/
 
 # IDE and OS specific files
 .vscode/
