@@ -26,10 +26,10 @@ func main() {
 	}
 
 	log.Printf("Configuration loaded: Port=%s, StaticDir=%s, PatternsDir=%s, SchedulesFile=%s, BLE Rate=%.1f/s",
-		cfg.Server.Port, 
-		cfg.Server.StaticFilesDir, 
-		cfg.PatternsDir, 
-		cfg.SchedulesFile, 
+		cfg.Server.Port,
+		cfg.Server.WebFilesDir,
+		cfg.PatternsDir,
+		cfg.SchedulesFile,
 		cfg.BLE.RateLimit,
 	)
 

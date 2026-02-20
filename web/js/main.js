@@ -1,4 +1,4 @@
-// static/js/main.js
+// web/js/main.js
 
 import { ui, initCodeMirror, initColorPicker, setStatus, renderHardwarePatterns, populateTimePickers, populateCronTimePickers, updatePatternLists, updateScheduleList, initDarkMode } from './ui.js';
 import { deviceAPI, setSocket } from './api.js';

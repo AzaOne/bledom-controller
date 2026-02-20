@@ -10,7 +10,7 @@ import (
 // ServerConfig - налаштування HTTP сервера
 type ServerConfig struct {
 	Port           string   `json:"port"`
-	StaticFilesDir string   `json:"static_files_dir"`
+	WebFilesDir    string   `json:"web_files_dir"`
 	AllowedOrigins []string `json:"allowed_origins"`
 }
 
@@ -81,14 +81,14 @@ func Load(path string) (*Config, error) {
 
 func (c *Config) sanitize() {
 	c.Server.Port = strings.TrimSpace(c.Server.Port)
-	c.Server.StaticFilesDir = strings.TrimSpace(c.Server.StaticFilesDir)
+	c.Server.WebFilesDir = strings.TrimSpace(c.Server.WebFilesDir)
 	c.PatternsDir = strings.TrimSpace(c.PatternsDir)
 	c.SchedulesFile = strings.TrimSpace(c.SchedulesFile)
-	
-	// Очищення пробілів у назвах девайсів (хоча іноді в BLE іменах важливі пробіли, 
+
+	// Очищення пробілів у назвах девайсів (хоча іноді в BLE іменах важливі пробіли,
 	// але зазвичай це помилка копіювання, окрім випадку точного матчингу)
-	// Залишимо як є або зробимо TrimSpace залежно від логіки. 
-	// В оригіналі було "ELK-BLEDOM   ", тому краще не чіпати масив імен тут, 
+	// Залишимо як є або зробимо TrimSpace залежно від логіки.
+	// В оригіналі було "ELK-BLEDOM   ", тому краще не чіпати масив імен тут,
 	// або робити це обережно.
 }
 
@@ -97,8 +97,8 @@ func (c *Config) setDefaults() {
 	if c.Server.Port == "" {
 		c.Server.Port = "8080"
 	}
-	if c.Server.StaticFilesDir == "" {
-		c.Server.StaticFilesDir = "./static"
+	if c.Server.WebFilesDir == "" {
+		c.Server.WebFilesDir = "./web"
 	}
 	if len(c.Server.AllowedOrigins) == 0 {
 		c.Server.AllowedOrigins = []string{"http://localhost:8080"}

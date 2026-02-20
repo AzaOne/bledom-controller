@@ -1,4 +1,4 @@
-// static/js/ui.js
+// web/js/ui.js
 
 import { HARDWARE_PATTERNS } from './constants.js';
 import { pad } from './utils.js';

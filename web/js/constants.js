@@ -1,4 +1,4 @@
-// static/js/constants.js
+// web/js/constants.js
 
 export const HARDWARE_PATTERNS = [
     { id: 0, name: 'Static Red', animClass: 'pattern-anim-static', style: 'background-color:#ff0000;' },

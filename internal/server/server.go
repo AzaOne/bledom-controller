@@ -37,13 +37,13 @@ type Server struct {
 	state          *core.State
 	scheduler      *scheduler.Scheduler
 
-	staticFilesDir string
+	webFilesDir    string
 	allowedOrigins []string
 	upgrader       websocket.Upgrader
 }
 
 // NewServer creates a new server instance.
-func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *scheduler.Scheduler, cmdChan core.CommandChannel, port string, staticFilesDir string, allowedOrigins []string) *Server {
+func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *scheduler.Scheduler, cmdChan core.CommandChannel, port string, webFilesDir string, allowedOrigins []string) *Server {
 	hub := NewHub()
 	go hub.Run()
 
@@ -56,7 +56,7 @@ func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *
 		scheduler:      sched,
 		commandChannel: cmdChan,
 
-		staticFilesDir: staticFilesDir,
+		webFilesDir:    webFilesDir,
 		allowedOrigins: allowedOrigins,
 	}
 
@@ -79,7 +79,7 @@ func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.Dir(s.staticFilesDir)))
+	mux.Handle("/", http.FileServer(http.Dir(s.webFilesDir)))
 	mux.HandleFunc("/ws", s.handleWebSocket)
 	s.httpServer = &http.Server{Addr: ":" + port, Handler: mux}
 

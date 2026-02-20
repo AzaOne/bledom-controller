@@ -77,7 +77,7 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 		a.scheduler,
 		a.commandChannel,
 		cfg.Server.Port,
-		cfg.Server.StaticFilesDir,
+		cfg.Server.WebFilesDir,
 		cfg.Server.AllowedOrigins,
 	)
 

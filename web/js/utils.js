@@ -1,4 +1,4 @@
-// static/js/utils.js
+// web/js/utils.js
 
 const debounceTimeouts = {};
 

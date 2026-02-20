@@ -1,7 +1,7 @@
 {
   "server": {
     "port": "8080",
-    "static_files_dir": "./static",
+    "static_files_dir": "./web",
     "allowed_origins": [
       "http://localhost:8080"
     ]

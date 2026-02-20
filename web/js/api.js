@@ -1,4 +1,4 @@
-// static/js/api.js
+// web/js/api.js
 
 import { debounce } from './utils.js';
 import { ui } from './ui.js'; // We might need `ui.scheduleHour.value` etc here.
