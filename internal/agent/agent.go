@@ -43,7 +43,7 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 		config:         cfg,
 		state:          core.NewState(),
 		eventBus:       core.NewEventBus(),
-		commandChannel: make(core.CommandChannel, 100),
+		commandChannel: make(core.CommandChannel, 20),
 	}
 
 	// Налаштування Bluetooth

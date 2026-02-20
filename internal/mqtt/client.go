@@ -306,21 +306,25 @@ func (c *Client) PublishHADiscovery() {
 		"object_id": safeID,
 		"icon":      "mdi:led-strip",
 
+		// power
 		"command_topic": fmt.Sprintf("%s/power/set", c.prefix),
 		"state_topic":   fmt.Sprintf("%s/power/state", c.prefix),
 
+		// brightness
 		"brightness_command_topic": fmt.Sprintf("%s/brightness/set", c.prefix),
 		"brightness_state_topic":   fmt.Sprintf("%s/brightness/state", c.prefix),
 		"brightness_scale":         100,
 
+		// color
 		"rgb_command_topic": fmt.Sprintf("%s/color/set", c.prefix),
 		"rgb_state_topic":   fmt.Sprintf("%s/color/state", c.prefix),
 
+		// effects
 		"effect_command_topic": fmt.Sprintf("%s/pattern/run", c.prefix),
 		"effect_state_topic":   fmt.Sprintf("%s/pattern/state", c.prefix),
 		"effect_list":          patterns,
 
-		// Налаштування доступності (Availability)
+		// availability
 		"availability_mode": "all",
 		"availability": []map[string]string{
 			{
@@ -335,6 +339,7 @@ func (c *Client) PublishHADiscovery() {
 			},
 		},
 
+		// device
 		"device": map[string]interface{}{
 			"identifiers":  []string{safeID},
 			"name":         "BLEDOM Controller",

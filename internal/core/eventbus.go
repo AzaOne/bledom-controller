@@ -40,7 +40,7 @@ func (eb *EventBus) Subscribe(eventTypes ...EventType) Subscriber {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
 
-	ch := make(Subscriber, 100) // Buffered channel so publishers don't block
+	ch := make(Subscriber, 16) // Buffered channel so publishers don't block
 	for _, t := range eventTypes {
 		eb.subscribers[t] = append(eb.subscribers[t], ch)
 	}

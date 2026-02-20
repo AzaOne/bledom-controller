@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"bledom-controller/internal/ble"
 	"bledom-controller/internal/core"
@@ -15,72 +16,113 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-// scriptJob represents a request to execute a Lua script.
-type scriptJob struct {
-	name     string
-	executor func(*lua.LState) error
+// cmdType defines the type of engine command.
+type cmdType int
+
+const (
+	cmdRunFile cmdType = iota
+	cmdRunString
+	cmdStop
+)
+
+// engineCmd represents a command sent to the Lua engine.
+type engineCmd struct {
+	kind cmdType
+	name string
+	code string
 }
 
 // Engine manages the Lua scripting environment using a single worker goroutine
 // to ensure only one pattern runs at a time.
 type Engine struct {
-	bleController        *ble.Controller
-	jobQueue             chan scriptJob
-	currentPatternCtx    context.Context
-	currentPatternCancel context.CancelFunc
-	patternMutex         sync.Mutex
+	bleController *ble.Controller
+	patternsDir   string
+	eventBus      *core.EventBus
 
-	patternsDir string
-	eventBus    *core.EventBus
+	cmdChan chan engineCmd
+	wg      sync.WaitGroup
 }
 
 // NewEngine creates a new Lua engine and starts its background worker.
 func NewEngine(bleController *ble.Controller, patternsDir string, eb *core.EventBus) *Engine {
 	e := &Engine{
 		bleController: bleController,
-		jobQueue:      make(chan scriptJob, 1),
-		patternsDir:   patternsDir, // Store patterns directory
+		patternsDir:   patternsDir,
 		eventBus:      eb,
+		cmdChan:       make(chan engineCmd, 10),
 	}
-	go e.worker()
+
+	go e.runLoop()
+
 	return e
 }
 
-// worker is the heart of the engine. It runs in a single goroutine,
-// processing jobs from the jobQueue one by one. This serial execution
-// prevents all race conditions.
-func (e *Engine) worker() {
-	for job := range e.jobQueue {
-		e.execute(job.name, job.executor)
+func (e *Engine) runLoop() {
+	var currentCancel context.CancelFunc
+	var scriptDone chan struct{}
+
+	for cmd := range e.cmdChan {
+		if currentCancel != nil {
+			currentCancel()
+			select {
+			case <-scriptDone:
+			case <-time.After(2 * time.Second):
+				log.Println("Lua engine: timeout waiting for script to stop")
+			}
+			currentCancel = nil
+			scriptDone = nil
+		}
+
+		if cmd.kind == cmdStop {
+			continue
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		currentCancel = cancel
+		scriptDone = make(chan struct{})
+
+		go func(cmd engineCmd, ctx context.Context, done chan struct{}) {
+			switch cmd.kind {
+			case cmdRunFile:
+				e.executeFile(cmd.name, cmd.code, ctx, done)
+			case cmdRunString:
+				e.executeString(cmd.name, cmd.code, ctx, done)
+			}
+		}(cmd, ctx, scriptDone)
 	}
 }
 
-// StopCurrentPattern stops the currently running script and clears any pending script from the queue.
+// StopCurrentPattern stops the currently running script.
 func (e *Engine) StopCurrentPattern() {
-	log.Println("Received stop command.")
 	select {
-	case <-e.jobQueue:
-		log.Println("Cleared a pending job from the queue.")
+	case e.cmdChan <- engineCmd{kind: cmdStop}:
 	default:
-	}
-
-	e.patternMutex.Lock()
-	defer e.patternMutex.Unlock()
-	if e.currentPatternCancel != nil {
-		log.Println("Stopping currently running pattern via context cancellation.")
-		e.currentPatternCancel()
-		e.currentPatternCancel = nil
+		log.Println("Lua engine: command channel full, could not send stop")
 	}
 }
 
-// sendJob sends a job to the worker, replacing any job that's already waiting.
-func (e *Engine) sendJob(job scriptJob) {
-	select {
-	case <-e.jobQueue:
-		log.Println("Replaced a pending job in the queue.")
-	default:
+// RunPattern prepares and sends a command to execute a Lua script from a file.
+func (e *Engine) RunPattern(name string) {
+	scriptPath, err := e.GetPatternPath(name)
+	if err != nil {
+		log.Printf("Could not get pattern path: %v", err)
+		return
 	}
-	e.jobQueue <- job
+
+	e.cmdChan <- engineCmd{
+		kind: cmdRunFile,
+		name: name,
+		code: scriptPath,
+	}
+}
+
+// ExecuteString prepares and sends a command to execute a one-off Lua command.
+func (e *Engine) ExecuteString(code string) {
+	e.cmdChan <- engineCmd{
+		kind: cmdRunString,
+		name: "single line command",
+		code: code,
+	}
 }
 
 // sanitizeFilename checks for directory traversal and valid extension.
@@ -158,53 +200,24 @@ func (e *Engine) GetPatternList() ([]string, error) {
 	return patterns, nil
 }
 
-// RunPattern prepares and sends a job to execute a Lua script from a file.
-func (e *Engine) RunPattern(name string) {
-	e.StopCurrentPattern()
-
-	scriptPath, err := e.GetPatternPath(name)
-	if err != nil {
-		log.Printf("Could not get pattern path: %v", err)
-		return
-	}
-
-	executor := func(L *lua.LState) error {
-		return L.DoFile(scriptPath)
-	}
-
-	e.sendJob(scriptJob{
-		name:     name,
-		executor: executor,
-	})
+// executeFile is the internal method called within a goroutine.
+func (e *Engine) executeFile(name, path string, ctx context.Context, done chan struct{}) {
+	defer close(done)
+	e.execute(name, func(L *lua.LState) error {
+		return L.DoFile(path)
+	}, ctx)
 }
 
-// ExecuteString prepares and sends a job to execute a one-off Lua command.
-func (e *Engine) ExecuteString(code string) {
-	e.StopCurrentPattern()
-
-	executor := func(L *lua.LState) error {
+// executeString is the internal method called within a goroutine.
+func (e *Engine) executeString(name, code string, ctx context.Context, done chan struct{}) {
+	defer close(done)
+	e.execute(name, func(L *lua.LState) error {
 		return L.DoString(code)
-	}
-
-	e.sendJob(scriptJob{
-		name:     "single line command",
-		executor: executor,
-	})
+	}, ctx)
 }
 
-// execute is the internal method called ONLY by the worker goroutine.
-func (e *Engine) execute(name string, executor func(*lua.LState) error) {
-	e.patternMutex.Lock()
-	if e.currentPatternCancel != nil {
-		log.Printf("Execute: Stopping previous pattern before starting '%s'", name)
-		e.currentPatternCancel()
-	}
-	e.patternMutex.Unlock()
-
-	e.patternMutex.Lock()
-	e.currentPatternCtx, e.currentPatternCancel = context.WithCancel(context.Background())
-	e.patternMutex.Unlock()
-
+// execute is a helper to run Lua code with a context.
+func (e *Engine) execute(name string, executor func(*lua.LState) error, ctx context.Context) {
 	log.Printf("Starting pattern '%s'...", name)
 	if e.eventBus != nil {
 		e.eventBus.Publish(core.Event{
@@ -225,18 +238,15 @@ func (e *Engine) execute(name string, executor func(*lua.LState) error) {
 				},
 			})
 		}
-
-		e.patternMutex.Lock()
-		e.currentPatternCancel = nil
-		e.patternMutex.Unlock()
 	}()
 
 	L := lua.NewState()
 	defer L.Close()
-	e.registerGoFunctions(L, true)
+	L.SetContext(ctx)
+	e.registerGoFunctions(L, ctx)
 
 	if err := executor(L); err != nil {
-		if e.currentPatternCtx.Err() == context.Canceled {
+		if ctx.Err() == context.Canceled {
 			log.Printf("Lua pattern '%s' execution was canceled.", name)
 		} else {
 			log.Printf("Error executing Lua pattern '%s': %v", name, err)

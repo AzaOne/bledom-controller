@@ -62,6 +62,8 @@ func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *
 
 	// Initialize WebSocket upgrader
 	s.upgrader = websocket.Upgrader{
+		ReadBufferSize:  512,
+		WriteBufferSize: 512,
 		CheckOrigin: func(r *http.Request) bool {
 			if len(s.allowedOrigins) == 0 {
 				log.Println("Warning: WebSocket CheckOrigin is disabled.")
