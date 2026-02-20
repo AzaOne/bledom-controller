@@ -17,9 +17,10 @@ echo "Starting build for ${APP_NAME}..."
 
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
 # This creates a string like: -X 'main.version=v1.0' -X 'main.commit=a1b2c3d' ...
-LDFLAGS_STRING="-s -w -X 'main.commit=${COMMIT}' -X 'main.date=${DATE}'"
+LDFLAGS_STRING="-s -w -X 'main.version=${VERSION}' -X 'main.commit=${COMMIT}' -X 'main.date=${DATE}'"
 
 rm -rf ${OUTPUT_DIR}
 mkdir -p ${OUTPUT_DIR}

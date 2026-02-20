@@ -13,12 +13,13 @@ import (
 
 // These variables are populated during the build process using -ldflags.
 var (
-	commit = "none"
-	date   = "unknown"
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 func main() {
-	log.Printf("[Main] Starting BLEDOM Controller (Commit: %s, Built: %s)", commit, date)
+	log.Printf("[Main] Starting BLEDOM Controller (Version: %s, Commit: %s, Built: %s)", version, commit, date)
 
 	configPath := "./config.json"
 	cfg, err := config.Load(configPath)
