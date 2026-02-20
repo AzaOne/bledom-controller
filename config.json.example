@@ -3,8 +3,7 @@
     "port": "8080",
     "static_files_dir": "./static",
     "allowed_origins": [
-      "http://localhost:8080",
-      "http://bledom.home.local"
+      "http://localhost:8080"
     ]
   },
   "ble": {
@@ -22,7 +21,7 @@
   },
   "mqtt": {
     "enabled": true,
-    "broker": "tcp://192.168.1.10:1883",
+    "broker": "tcp://localhost:1883",
     "username": "",
     "password": "",
     "client_id": "bledom-controller",
