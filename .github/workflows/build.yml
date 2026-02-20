@@ -31,11 +31,6 @@ jobs:
           go-version: '1.25.1'
           cache: true
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libdbus-1-dev
-
       - name: Build binary
         run: |
           COMMIT=$(git rev-parse --short HEAD)
@@ -45,7 +40,7 @@ jobs:
             VERSION=${GITHUB_REF#refs/tags/}
           fi
           LDFLAGS="-s -w -X 'main.version=${VERSION}' -X 'main.commit=${COMMIT}' -X 'main.date=${DATE}'"
-          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
           go build -v -ldflags="${LDFLAGS}" -o build/bledom-controller-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/agent/main.go
 
       - name: Upload artifacts

@@ -31,7 +31,7 @@ for target in "${TARGETS[@]}"; do
     echo "Building for ${GOOS}/${GOARCH}..."
 
     OUTPUT_NAME="${OUTPUT_DIR}/${APP_NAME}-${GOOS}-${GOARCH}"
-    GOOS=${GOOS} GOARCH=${GOARCH} go build \
+    CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} go build \
         -v \
         -ldflags="${LDFLAGS_STRING}" \
         -o ${OUTPUT_NAME} \
