@@ -67,9 +67,9 @@ func (e *Engine) StopCurrentPattern() {
 	e.patternMutex.Lock()
 	defer e.patternMutex.Unlock()
 	if e.currentPatternCancel != nil {
+		log.Println("Stopping currently running pattern via context cancellation.")
 		e.currentPatternCancel()
 		e.currentPatternCancel = nil
-		log.Println("Canceled the context of the running pattern.")
 	}
 }
 
@@ -196,6 +196,7 @@ func (e *Engine) ExecuteString(code string) {
 func (e *Engine) execute(name string, executor func(*lua.LState) error) {
 	e.patternMutex.Lock()
 	if e.currentPatternCancel != nil {
+		log.Printf("Execute: Stopping previous pattern before starting '%s'", name)
 		e.currentPatternCancel()
 	}
 	e.patternMutex.Unlock()
@@ -235,7 +236,9 @@ func (e *Engine) execute(name string, executor func(*lua.LState) error) {
 	e.registerGoFunctions(L, true)
 
 	if err := executor(L); err != nil {
-		if e.currentPatternCtx.Err() != context.Canceled {
+		if e.currentPatternCtx.Err() == context.Canceled {
+			log.Printf("Lua pattern '%s' execution was canceled.", name)
+		} else {
 			log.Printf("Error executing Lua pattern '%s': %v", name, err)
 		}
 	}

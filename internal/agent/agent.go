@@ -174,13 +174,24 @@ func (a *Agent) listenEvents() {
 }
 
 func (a *Agent) handleCommand(cmd core.Command) {
+	log.Printf("[Agent] Handling command: %s with payload: %v", cmd.Type, cmd.Payload)
+
+	currentState := a.state.Clone()
+
 	switch cmd.Type {
 	case core.CmdSetPower:
 		isOn := false
 		if b, ok := cmd.Payload["isOn"].(bool); ok {
 			isOn = b
 		}
-		a.luaEngine.StopCurrentPattern()
+
+		if currentState.Power == isOn {
+			log.Printf("[Agent] Power already %v, skipping pattern stop.", isOn)
+		} else {
+			log.Printf("[Agent] Power changing to %v, stopping pattern.", isOn)
+			a.luaEngine.StopCurrentPattern()
+		}
+
 		a.state.SetPower(isOn)
 		a.bleController.SetPower(isOn)
 		a.eventBus.Publish(core.Event{Type: core.PowerChangedEvent, Payload: map[string]interface{}{"isOn": isOn}})
@@ -199,7 +210,13 @@ func (a *Agent) handleCommand(cmd core.Command) {
 			b = int(vb)
 		}
 
-		a.luaEngine.StopCurrentPattern()
+		if currentState.ColorR == r && currentState.ColorG == g && currentState.ColorB == b {
+			log.Printf("[Agent] Color already #%02X%02X%02X, skipping pattern stop.", r, g, b)
+		} else {
+			log.Printf("[Agent] Color changing to #%02X%02X%02X, stopping pattern.", r, g, b)
+			a.luaEngine.StopCurrentPattern()
+		}
+
 		a.state.SetColor(r, g, b)
 		a.bleController.SetColor(r, g, b)
 
@@ -233,6 +250,9 @@ func (a *Agent) handleCommand(cmd core.Command) {
 		id := 0
 		if v, ok := cmd.Payload["id"].(float64); ok {
 			id = int(v)
+		}
+		if currentState.RunningPattern != "" {
+			log.Printf("[Agent] Hardware pattern requested while Lua pattern '%s' is running. Stopping Lua pattern.", currentState.RunningPattern)
 		}
 		a.luaEngine.StopCurrentPattern()
 		a.bleController.SetHardwarePattern(id)
@@ -340,7 +360,7 @@ func (a *Agent) handleCommand(cmd core.Command) {
 	case core.CmdDeletePattern:
 		if name, ok := cmd.Payload["name"].(string); ok {
 			if err := a.luaEngine.DeletePattern(name); err != nil {
-				log.Printf("Error deleting pattern: %v", err)
+				log.Printf("Error deleting pattern '%s': %v", name, err)
 			} else {
 				patterns, _ := a.luaEngine.GetPatternList()
 				if a.server != nil && a.server.Hub != nil {
