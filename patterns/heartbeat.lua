@@ -1,4 +1,7 @@
--- Heartbeat Pulse
+-- heartbeat.lua: Pulsates with a rhythmic red-pink heartbeat.
+
+print("Starting heartbeat pattern...")
+
 set_power(true)
 set_color(255, 0, 50) -- Red-pink
 

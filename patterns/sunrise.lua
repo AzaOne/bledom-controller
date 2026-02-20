@@ -64,6 +64,7 @@ local transitions = {
     target = { color = {255,0,0}, brightness = BR_MIN } }
 }
 
+print("Starting sunrise pattern...")
 set_power(true)
 local cur_min, hh, mm = now()
 

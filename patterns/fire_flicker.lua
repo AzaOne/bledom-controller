@@ -1,4 +1,7 @@
--- Fire Flicker
+-- fire_flicker.lua: Simulates the warm, dancing glow of a fire.
+
+print("Starting fire flicker pattern...")
+
 math.randomseed(os.time())
 set_power(true)
 

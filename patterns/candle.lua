@@ -9,8 +9,8 @@ local base_brightness = 80
 
 -- Loop until cancelled
 while true do
-  -- Every loop, calculate a slightly random brightness and color shift
   if should_stop() then return end
+  -- Every loop, calculate a slightly random brightness and color shift
   -- Fluctuate brightness between 50% and 100% of the base
   local brightness_flicker = math.random(50, 100)
   local current_brightness = base_brightness * (brightness_flicker / 100)

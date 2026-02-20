@@ -1,4 +1,7 @@
--- Meteor Trail Effect
+-- meteor.lua: Creates a white flash followed by a fading blue trail.
+
+print("Starting meteor pattern...")
+
 set_power(true)
 
 while true do

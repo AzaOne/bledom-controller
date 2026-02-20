@@ -1,4 +1,4 @@
--- effect.lua: Demonstrates the new built-in effect functions.
+-- effects.lua: Demonstrates the new built-in effect functions.
 
 print("Starting effect showcase...")
 set_power(true)

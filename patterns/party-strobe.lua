@@ -16,6 +16,7 @@ local colors = {
 }
 
 while true do
+  if should_stop() then return end
   -- ipairs iterates through the table with an index and the value
   for i, color in ipairs(colors) do
     

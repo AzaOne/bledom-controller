@@ -7,6 +7,7 @@ set_brightness(100)
 
 -- Loop forever until the user stops the pattern
 while true do
+  if should_stop() then return end
   
   -- Flash RED
   set_color(255, 0, 0)
