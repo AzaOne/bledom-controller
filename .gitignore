@@ -12,6 +12,7 @@ bledom-controller
 
 # User data files
 schedules.json
+config.json
 
 # Test binary, build with `go test -c`
 *.test

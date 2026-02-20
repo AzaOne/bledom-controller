@@ -1,0 +1,6 @@
+{
+  "2": {
+    "spec": "0 * * * *",
+    "command": "pattern sunrise.lua"
+  }
+}

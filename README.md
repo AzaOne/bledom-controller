@@ -36,12 +36,16 @@ The easiest way to run the BLEDOM Controller is with Docker and Docker Compose.
     ```
 
 2.  **Review Configuration (Optional):**
-    - Edit `config.json` to configure your MQTT broker settings and Home Assistant discovery (enabled by default).
+    - Copy `config.json.example` to `config.json` and edit it to configure your MQTT broker settings and Home Assistant discovery (enabled by default).
     - The `patterns/` directory contains your Lua scripts. You can add your own `.lua` files here before starting.
-    - `schedules.json` stores your cron schedules. You can pre-configure it or manage schedules through the UI.
+    - Copy `schedules.json.example` to `schedules.json` to store your cron schedules. You can pre-configure it or manage schedules through the UI.
 
 3.  **Run with Docker Compose:**
-    This command will build the Docker image and start the controller in the background.
+    First, create your own `compose.yml` file from the example:
+    ```sh
+    cp compose.example.yml compose.yml
+    ```
+    Then, build the Docker image and start the controller in the background:
     ```sh
     docker compose up --build -d
     ```
