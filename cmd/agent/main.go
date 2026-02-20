@@ -1,3 +1,4 @@
+// Package main is the entry point for the BLEDOM Controller Agent.
 package main
 
 import (
@@ -10,41 +11,40 @@ import (
 	"bledom-controller/internal/config"
 )
 
-// These variables will be set by the build script
+// These variables are populated during the build process using -ldflags.
 var (
 	commit = "none"
 	date   = "unknown"
 )
 
 func main() {
-	log.Printf("Starting BLEDOM Controller Agent commit: %s, built: %s", commit, date)
+	log.Printf("[Main] Starting BLEDOM Controller (Commit: %s, Built: %s)", commit, date)
 
 	configPath := "./config.json"
 	cfg, err := config.Load(configPath)
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		log.Fatalf("[Main] FATAL: Failed to load configuration: %v", err)
 	}
 
-	log.Printf("Configuration loaded: Port=%s, StaticDir=%s, PatternsDir=%s, SchedulesFile=%s, BLE Rate=%.1f/s",
+	log.Printf("[Main] Configuration loaded successfully (Port=%s, WebDir=%s)",
 		cfg.Server.Port,
 		cfg.Server.WebFilesDir,
-		cfg.PatternsDir,
-		cfg.SchedulesFile,
-		cfg.BLE.RateLimit,
 	)
 
 	a, err := agent.NewAgent(cfg)
 	if err != nil {
-		log.Fatalf("Failed to create agent: %v", err)
+		log.Fatalf("[Main] FATAL: Failed to initialize agent: %v", err)
 	}
 
+	// Start the agent orchestration in a separate goroutine
 	go a.Run()
 
+	// Wait for termination signals for a graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down agent...")
+	log.Println("[Main] Shutdown signal received, stopping agent...")
 	a.Shutdown()
-	log.Println("Agent shut down gracefully.")
+	log.Println("[Main] Graceful shutdown complete.")
 }

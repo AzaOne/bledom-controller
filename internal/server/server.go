@@ -1,3 +1,4 @@
+// Package server provides HTTP and WebSocket services for the BLEDOM controller.
 package server
 
 import (
@@ -15,18 +16,18 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// ClientConn defines an interface for a WebSocket connection.
+// ClientConn defines an interface for a WebSocket connection, facilitating testing.
 type ClientConn interface {
 	WriteJSON(v interface{}) error
 }
 
-// Command is the raw JSON structure from websockets
+// incomingCommand represents the raw JSON structure of commands received via WebSockets.
 type incomingCommand struct {
 	Type    string                 `json:"type"`
 	Payload map[string]interface{} `json:"payload"`
 }
 
-// Server manages the HTTP and WebSocket services.
+// Server manages the HTTP and WebSocket endpoints and handles client coordination.
 type Server struct {
 	Hub        *Hub
 	luaEngine  *lua.Engine
@@ -42,12 +43,11 @@ type Server struct {
 	upgrader       websocket.Upgrader
 }
 
-// NewServer creates a new server instance.
+// NewServer creates and initializes a new Server instance.
 func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *scheduler.Scheduler, cmdChan core.CommandChannel, port string, webFilesDir string, allowedOrigins []string) *Server {
 	hub := NewHub()
 	go hub.Run()
 
-	// Create new server instance
 	s := &Server{
 		Hub:            hub,
 		luaEngine:      luaEngine,
@@ -60,13 +60,13 @@ func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *
 		allowedOrigins: allowedOrigins,
 	}
 
-	// Initialize WebSocket upgrader
+	// Initialize WebSocket upgrader with standard buffers
 	s.upgrader = websocket.Upgrader{
 		ReadBufferSize:  512,
 		WriteBufferSize: 512,
 		CheckOrigin: func(r *http.Request) bool {
 			if len(s.allowedOrigins) == 0 {
-				log.Println("Warning: WebSocket CheckOrigin is disabled.")
+				log.Println("[Server] Warning: WebSocket CheckOrigin is disabled (allowing all).")
 				return true
 			}
 			origin := r.Header.Get("Origin")
@@ -75,7 +75,7 @@ func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *
 					return true
 				}
 			}
-			log.Printf("WebSocket connection blocked: Origin '%s' not in allowed list.", origin)
+			log.Printf("[Server] WebSocket connection blocked: Origin '%s' not in allowed list.", origin)
 			return false
 		},
 	}
@@ -85,13 +85,13 @@ func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *
 	mux.HandleFunc("/ws", s.handleWebSocket)
 	s.httpServer = &http.Server{Addr: ":" + port, Handler: mux}
 
-	// Subscribe to events to broadcast via WS
+	// Subscribe to internal events to broadcast them to clients
 	go s.listenEvents()
 
 	return s
 }
 
-// listenEvents subscribes to events from the event bus and broadcasts them to WebSocket clients.
+// listenEvents subscribes to the event bus and broadcasts relevant events to all connected WebSocket clients.
 func (s *Server) listenEvents() {
 	if s.eventBus == nil {
 		return
@@ -121,18 +121,21 @@ func (s *Server) listenEvents() {
 	}
 }
 
+// ListenAndServe starts the HTTP server.
 func (s *Server) ListenAndServe() error {
 	return s.httpServer.ListenAndServe()
 }
 
+// Shutdown gracefully stops the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
+// handleWebSocket upgrades HTTP connections to WebSocket and handles client communication.
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("WebSocket upgrade error: %v", err)
+		log.Printf("[Server] WebSocket upgrade error: %v", err)
 		return
 	}
 	defer conn.Close()
@@ -140,13 +143,13 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	if s.state != nil {
 		st := s.state.Clone()
 
-		// Send BLE status
+		// Send initial BLE connection status
 		_ = conn.WriteJSON(NewMessage("ble_status", map[string]interface{}{
 			"connected": st.IsConnected,
 			"rssi":      st.RSSI,
 		}))
 
-		// Send current device state
+		// Send initial device state
 		hex := fmt.Sprintf("#%02X%02X%02X", st.ColorR, st.ColorG, st.ColorB)
 		_ = conn.WriteJSON(NewMessage("device_state", map[string]interface{}{
 			"isOn":       st.Power,
@@ -158,13 +161,13 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			"speed":      st.Speed,
 		}))
 
-		// Send current running pattern
+		// Send initial running pattern
 		_ = conn.WriteJSON(NewMessage("pattern_status", map[string]interface{}{
 			"running": st.RunningPattern,
 		}))
 	}
 
-	// Send pattern list
+	// Send available pattern list
 	patterns, err := s.luaEngine.GetPatternList()
 	if err == nil {
 		_ = conn.WriteJSON(NewMessage("pattern_list", patterns))
@@ -182,26 +185,24 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	for {
-		// Read incoming command from websocket
+		// Read incoming message from client
 		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
 			break
 		}
 
-		// Incoming command from websocket
 		var rawCmd incomingCommand
 		if err := json.Unmarshal(msgBytes, &rawCmd); err != nil {
-			log.Printf("Error unmarshalling raw command: %v", err)
+			log.Printf("[Server] Error unmarshalling client command: %v", err)
 			continue
 		}
 
-		// Convert JSON unmarshalled standard command from websocket payload into internal Command
+		// Wrap as internal command and send to orchestrator
 		cmd := core.Command{
 			Type:    core.CommandType(rawCmd.Type),
 			Payload: rawCmd.Payload,
 		}
 
-		// Send command to command channel
 		if s.commandChannel != nil {
 			s.commandChannel <- cmd
 		}

@@ -1,3 +1,4 @@
+// Package mqtt provides an MQTT client for remote control and status reporting.
 package mqtt
 
 import (
@@ -14,6 +15,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
+// Client handles communication with an MQTT broker.
 type Client struct {
 	client mqtt.Client
 	cfg    *config.Config
@@ -25,13 +27,13 @@ type Client struct {
 	patternListFunc func() ([]string, error)
 }
 
-// NewClient створює клієнта з покращеною логікою реконекту.
+// NewClient creates a new MQTT client with robust reconnection logic.
 func NewClient(cfg *config.Config, eb *core.EventBus, st *core.State, cmdChan core.CommandChannel, patternListFunc func() ([]string, error)) *Client {
 	if !cfg.MQTT.Enabled {
 		return nil
 	}
 
-	// Формуємо префікс топіків, прибираючи зайві слеші в кінці
+	// Format topic prefix, removing trailing slashes
 	prefix := strings.TrimSuffix(cfg.MQTT.TopicPrefix, "/")
 
 	opts := mqtt.NewClientOptions()
@@ -40,26 +42,25 @@ func NewClient(cfg *config.Config, eb *core.EventBus, st *core.State, cmdChan co
 	opts.SetUsername(cfg.MQTT.Username)
 	opts.SetPassword(cfg.MQTT.Password)
 
-	// --- Налаштування стабільності з'єднання ---
+	// --- Connection Stability Settings ---
 
-	// KeepAlive: частота пінгування брокера (10 сек)
+	// KeepAlive: frequency of pinging the broker
 	opts.SetKeepAlive(10 * time.Second)
-	// PingTimeout: скільки чекати відповіді на пінг (5 сек)
+	// PingTimeout: how long to wait for a ping response
 	opts.SetPingTimeout(5 * time.Second)
 
-	// AutoReconnect: відновлювати з'єднання після розриву
+	// AutoReconnect: automatically restore connection after drop
 	opts.SetAutoReconnect(true)
 	opts.SetMaxReconnectInterval(1 * time.Minute)
 
-	// ConnectRetry: намагатися підключитися при старті, навіть якщо брокер лежить (важливо для Docker)
-	// Це дозволяє уникнути негайного падіння, якщо MQTT контейнер ще не завантажився.
+	// ConnectRetry: attempts to connect at startup even if broker is down (important for Docker)
 	opts.SetConnectRetry(true)
 	opts.SetConnectRetryInterval(5 * time.Second)
 
-	// OrderMatters: false покращує пропускну здатність, оскільки не блокує обробку повідомлень
+	// OrderMatters: false improves throughput by not blocking message processing order
 	opts.SetOrderMatters(false)
 
-	// LWT (Last Will and Testament): Повідомлення, яке брокер надішле сам, якщо ми "впадемо"
+	// LWT (Last Will and Testament): Message broker sends if we disconnect unexpectedly
 	opts.SetWill(prefix+"/availability", "offline", 1, true)
 
 	c := &Client{
@@ -83,12 +84,13 @@ func NewClient(cfg *config.Config, eb *core.EventBus, st *core.State, cmdChan co
 
 	c.client = mqtt.NewClient(opts)
 
-	// Subscribe to events
+	// Subscribe to internal events
 	go c.listenEvents()
 
 	return c
 }
 
+// listenEvents subscribes to the event bus and publishes state changes to MQTT.
 func (c *Client) listenEvents() {
 	if c.eventBus == nil {
 		return
@@ -121,7 +123,6 @@ func (c *Client) listenEvents() {
 				}
 			}
 		case core.StateChangedEvent:
-			// Full sync if needed, handle sync updates
 			if payload, ok := event.Payload.(map[string]interface{}); ok {
 				if powerIsOn, ok := payload["isOn"].(bool); ok {
 					powerStr := "OFF"
@@ -179,7 +180,7 @@ func (c *Client) listenEvents() {
 	}
 }
 
-// Connect ініціює підключення.
+// Connect initiates the connection to the MQTT broker.
 func (c *Client) Connect() error {
 	if c.client == nil {
 		return nil
@@ -187,9 +188,7 @@ func (c *Client) Connect() error {
 	log.Printf("[MQTT] Starting connection loop to %s...", c.cfg.MQTT.Broker)
 
 	token := c.client.Connect()
-	// Чекаємо завершення першої спроби рукостискання.
-	// Якщо ConnectRetry=true, то помилка тут означатиме скоріше проблеми з конфігурацією (наприклад, невалідний протокол),
-	// аніж просто недоступність мережі.
+	// Wait for the first handshake attempt.
 	if token.Wait() && token.Error() != nil {
 		log.Printf("[MQTT] Initial connection error: %v", token.Error())
 		return token.Error()
@@ -198,15 +197,15 @@ func (c *Client) Connect() error {
 	return nil
 }
 
-// Disconnect коректно завершує роботу: спочатку надсилає offline статус, потім закриває сокет.
+// Disconnect gracefully closes the MQTT connection, sending an offline status first.
 func (c *Client) Disconnect() {
 	if c.client != nil && c.client.IsConnected() {
 		log.Println("[MQTT] Disconnecting...")
 
-		// 1. Явно відправляємо статус offline перед розривом
+		// 1. Explicitly send offline status before disconnecting
 		token := c.client.Publish(c.prefix+"/availability", 0, true, "offline")
 
-		// Чекаємо завершення публікації з таймаутом (щоб не зависнути при виході)
+		// Wait for publication with timeout
 		if token.WaitTimeout(2 * time.Second) {
 			if token.Error() != nil {
 				log.Printf("[MQTT] Warning: failed to publish offline status: %v", token.Error())
@@ -215,12 +214,13 @@ func (c *Client) Disconnect() {
 			log.Println("[MQTT] Warning: timed out publishing offline status")
 		}
 
-		// 2. Закриваємо з'єднання
+		// 2. Close connection
 		c.client.Disconnect(250)
 		log.Println("[MQTT] Disconnected.")
 	}
 }
 
+// Publish sends a message to a specific subtopic under the configured prefix.
 func (c *Client) Publish(subtopic string, payload interface{}, retained bool) {
 	if c.client == nil || !c.client.IsConnected() {
 		return
@@ -231,7 +231,7 @@ func (c *Client) Publish(subtopic string, payload interface{}, retained bool) {
 
 	token := c.client.Publish(topic, 0, retained, msg)
 
-	// Не блокуємо основний потік, але і не допускаємо витоку горутин
+	// Wait in a separate goroutine to avoid blocking
 	go func() {
 		if token.WaitTimeout(5 * time.Second) {
 			if token.Error() != nil {
@@ -243,11 +243,11 @@ func (c *Client) Publish(subtopic string, payload interface{}, retained bool) {
 	}()
 }
 
-// onConnect викликається бібліотекою Paho у внутрішній горутині обробки подій.
+// onConnect is the library callback triggered when the MQTT connection is established.
 func (c *Client) onConnect(client mqtt.Client) {
 	log.Println("[MQTT] Connected to broker.")
 
-	// Підписка на топіки
+	// Topic subscriptions
 	topics := map[string]mqtt.MessageHandler{
 		"power/set":      c.handlePower,
 		"brightness/set": c.handleBrightness,
@@ -265,8 +265,7 @@ func (c *Client) onConnect(client mqtt.Client) {
 		}
 	}
 
-	// Відправка Discovery та статусу Online.
-	// Виконуємо в окремій горутині, щоб не блокувати onConnect (оскільки PublishHADiscovery має sleep).
+	// Send Discovery and Online status
 	go func() {
 		c.Publish("availability", "online", true)
 		if c.cfg.MQTT.HADiscoveryEnabled {
@@ -275,9 +274,9 @@ func (c *Client) onConnect(client mqtt.Client) {
 	}()
 }
 
-// PublishHADiscovery надсилає конфігурацію для Home Assistant
+// PublishHADiscovery sends Home Assistant discovery configuration.
 func (c *Client) PublishHADiscovery() {
-	// Даємо трохи часу, щоб переконатися, що підписки пройшли і система стабільна
+	// Wait a moment to ensure subscriptions are processed
 	time.Sleep(1 * time.Second)
 
 	patterns := []string{}
@@ -290,7 +289,7 @@ func (c *Client) PublishHADiscovery() {
 	}
 
 	safeID := strings.ReplaceAll(c.cfg.MQTT.ClientID, " ", "_")
-	// Санітизація ID
+	// Sanitize ID
 	safeID = strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
 			return r
@@ -354,8 +353,9 @@ func (c *Client) PublishHADiscovery() {
 	log.Printf("[MQTT] HA Discovery sent to %s", discoveryTopic)
 }
 
-// --- Handlers (Sync to WS and update State) ---
+// --- Handlers ---
 
+// handlePower processes incoming power toggle commands from MQTT.
 func (c *Client) handlePower(client mqtt.Client, msg mqtt.Message) {
 	payload := strings.ToLower(string(msg.Payload()))
 	var isOn bool
@@ -376,6 +376,7 @@ func (c *Client) handlePower(client mqtt.Client, msg mqtt.Message) {
 	}
 }
 
+// handleBrightness processes incoming brightness level commands from MQTT.
 func (c *Client) handleBrightness(client mqtt.Client, msg mqtt.Message) {
 	payload := string(msg.Payload())
 	val, err := strconv.Atoi(payload)
@@ -389,13 +390,14 @@ func (c *Client) handleBrightness(client mqtt.Client, msg mqtt.Message) {
 	}
 }
 
+// handleColor processes incoming color change commands (HEX or RGB) from MQTT.
 func (c *Client) handleColor(client mqtt.Client, msg mqtt.Message) {
 	payload := string(msg.Payload())
 
 	var r, g, b int
 	processed := false
 
-	// Логіка парсингу (HEX або RGB)
+	// Parsing logic (HEX or RGB)
 	if strings.HasPrefix(payload, "#") || len(payload) == 6 {
 		cleanHex := strings.TrimPrefix(payload, "#")
 		if _, err := fmt.Sscanf(cleanHex, "%02x%02x%02x", &r, &g, &b); err == nil {
@@ -423,6 +425,7 @@ func (c *Client) handleColor(client mqtt.Client, msg mqtt.Message) {
 	}
 }
 
+// handlePatternRun processes incoming Lua pattern execution commands from MQTT.
 func (c *Client) handlePatternRun(client mqtt.Client, msg mqtt.Message) {
 	name := string(msg.Payload())
 	c.commandChannel <- core.Command{
@@ -433,6 +436,7 @@ func (c *Client) handlePatternRun(client mqtt.Client, msg mqtt.Message) {
 	}
 }
 
+// handlePatternStop processes incoming Lua pattern stop commands from MQTT.
 func (c *Client) handlePatternStop(client mqtt.Client, msg mqtt.Message) {
 	c.commandChannel <- core.Command{
 		Type:    core.CmdStopPattern,

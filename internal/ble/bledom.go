@@ -1,3 +1,4 @@
+// Package ble provides a controller for managing Bluetooth Low Energy connections to BLEDOM devices.
 package ble
 
 import (
@@ -19,7 +20,7 @@ var (
 	defaultCharacteristicUUIDStr = "0000fff3-0000-1000-8000-00805f9b34fb"
 )
 
-// State зберігає поточний стан пристрою
+// State represents the current logical state of the BLEDOM device.
 type State struct {
 	IsOn       bool
 	R, G, B    int
@@ -27,7 +28,7 @@ type State struct {
 	Speed      int
 }
 
-// Controller manages the BLE connection and commands.
+// Controller manages the BLE connection, command queueing, and state tracking.
 type Controller struct {
 	characteristic bluetooth.DeviceCharacteristic
 	heartbeatChar  bluetooth.DeviceCharacteristic
@@ -46,12 +47,12 @@ type Controller struct {
 
 	eventBus *core.EventBus
 
-	// --- Збереження стану ---
+	// --- State Management ---
 	state   State
 	stateMu sync.RWMutex
 }
 
-// NewController creates a new BLE controller.
+// NewController creates and initializes a new BLE controller with the provided parameters.
 func NewController(ctx context.Context, eb *core.EventBus, deviceNames []string, scanTimeout, connectTimeout, heartbeatInterval, retryDelay time.Duration, commandRateLimitRate float64, commandRateLimitBurst int) *Controller {
 	serviceUUID, _ := bluetooth.ParseUUID(defaultServiceUUIDStr)
 	characteristicUUID, _ := bluetooth.ParseUUID(defaultCharacteristicUUIDStr)
@@ -69,7 +70,7 @@ func NewController(ctx context.Context, eb *core.EventBus, deviceNames []string,
 		bleCommandLimiter:     rate.NewLimiter(rate.Limit(commandRateLimitRate), commandRateLimitBurst),
 		eventBus:              eb,
 
-		// Початковий стан
+		// Initial state
 		state: State{
 			IsOn:       false,
 			R:          255,
@@ -84,25 +85,25 @@ func NewController(ctx context.Context, eb *core.EventBus, deviceNames []string,
 	return c
 }
 
-// GetState повертає копію поточного стану (thread-safe)
+// GetState returns a thread-safe copy of the current device state.
 func (c *Controller) GetState() State {
 	c.stateMu.RLock()
 	defer c.stateMu.RUnlock()
 	return c.state
 }
 
-// Write sends a byte command.
+// Write enqueues a raw byte command to be sent to the device.
 func (c *Controller) Write(payload []byte) {
 	select {
 	case c.commandChan <- payload:
 	default:
-		log.Printf("Warning: BLE command queue full, dropping command: %x", payload)
+		log.Printf("[BLE] Warning: Command queue full, dropping command: %x", payload)
 	}
 }
 
-// commandWriterLoop processes commands and writes to BLE.
+// commandWriterLoop is a background worker that processes and writes commands to the BLE characteristic.
 func (c *Controller) commandWriterLoop(ctx context.Context) {
-	log.Println("BLE command writer loop started.")
+	log.Println("[BLE] Command writer loop started.")
 	for {
 		select {
 		case <-ctx.Done():
@@ -118,14 +119,14 @@ func (c *Controller) commandWriterLoop(ctx context.Context) {
 
 			_, err := c.characteristic.WriteWithoutResponse(payload)
 			if err != nil {
-				log.Printf("Failed to write to BLEDOM (assuming disconnected): %v", err)
+				log.Printf("[BLE] Failed to write to device (assuming disconnected): %v", err)
 				c.signalDisconnect()
 			}
 		}
 	}
 }
 
-// signalDisconnect safely sends a disconnect signal.
+// signalDisconnect safely triggers a reconnection attempt.
 func (c *Controller) signalDisconnect() {
 	select {
 	case c.disconnectChan <- struct{}{}:
@@ -133,7 +134,7 @@ func (c *Controller) signalDisconnect() {
 	}
 }
 
-// contains checks if a string is in a slice.
+// contains returns true if the specified string is present in the slice.
 func contains(s []string, str string) bool {
 	for _, v := range s {
 		if v == str {
@@ -143,7 +144,7 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-// publishConnection is a helper to publish connection events.
+// publishConnection publishes a connection event to the internal event bus.
 func (c *Controller) publishConnection(connected bool, rssi int16) {
 	if c.eventBus != nil {
 		c.eventBus.Publish(core.Event{
@@ -156,19 +157,19 @@ func (c *Controller) publishConnection(connected bool, rssi int16) {
 	}
 }
 
-// Run starts the BLE connection management loop.
+// Run starts the main connection management loop, handling scanning, connecting, and discovery.
 func (c *Controller) Run(ctx context.Context) {
 	c.publishConnection(false, 0)
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("BLE controller shutting down.")
+			log.Println("[BLE] Controller shutting down.")
 			return
 		default:
 			// 1. Enable Adapter
 			if err := adapter.Enable(); err != nil {
-				log.Printf("Failed to enable adapter: %v", err)
+				log.Printf("[BLE] Failed to enable adapter: %v", err)
 				time.Sleep(c.bleRetryDelay)
 				continue
 			}
@@ -181,7 +182,7 @@ func (c *Controller) Run(ctx context.Context) {
 			c.characteristic = bluetooth.DeviceCharacteristic{}
 			c.heartbeatChar = bluetooth.DeviceCharacteristic{}
 
-			log.Println("Scanning for BLEDOM device...")
+			log.Println("[BLE] Scanning for BLEDOM device...")
 			adapter.StopScan()
 
 			ch := make(chan bluetooth.ScanResult, 1)
@@ -197,7 +198,7 @@ func (c *Controller) Run(ctx context.Context) {
 					}
 				})
 				if err != nil {
-					log.Printf("Scan error: %v", err)
+					log.Printf("[BLE] Scan error: %v", err)
 				}
 			}()
 
@@ -205,11 +206,11 @@ func (c *Controller) Run(ctx context.Context) {
 			scanCtx, cancelScan := context.WithTimeout(ctx, c.bleScanTimeout)
 			select {
 			case deviceScanResult = <-ch:
-				log.Printf("Found device: %s (RSSI: %d)", deviceScanResult.LocalName(), deviceScanResult.RSSI)
+				log.Printf("[BLE] Found device: %s (RSSI: %d)", deviceScanResult.LocalName(), deviceScanResult.RSSI)
 				cancelScan()
 			case <-scanCtx.Done():
 				adapter.StopScan()
-				log.Println("Scan timed out or interrupted. Retrying...")
+				log.Println("[BLE] Scan timed out or interrupted. Retrying...")
 				cancelScan()
 				time.Sleep(c.bleRetryDelay)
 				continue
@@ -218,7 +219,7 @@ func (c *Controller) Run(ctx context.Context) {
 			var device bluetooth.Device
 			connectErrChan := make(chan error, 1)
 
-			log.Printf("Connecting to %s...", deviceScanResult.Address.String())
+			log.Printf("[BLE] Connecting to %s...", deviceScanResult.Address.String())
 
 			go func() {
 				d, err := adapter.Connect(deviceScanResult.Address, bluetooth.ConnectionParams{})
@@ -231,13 +232,13 @@ func (c *Controller) Run(ctx context.Context) {
 			select {
 			case err := <-connectErrChan:
 				if err != nil {
-					log.Printf("Failed to connect: %v", err)
+					log.Printf("[BLE] Failed to connect: %v", err)
 					c.publishConnection(false, 0)
 					time.Sleep(c.bleRetryDelay)
 					continue
 				}
 			case <-time.After(c.bleConnectTimeout):
-				log.Println("Connection attempt timed out. Retrying...")
+				log.Println("[BLE] Connection attempt timed out. Retrying...")
 				adapter.StopScan()
 				time.Sleep(c.bleRetryDelay)
 				continue
@@ -245,7 +246,7 @@ func (c *Controller) Run(ctx context.Context) {
 				return
 			}
 
-			log.Printf("Connected to %s", deviceScanResult.LocalName())
+			log.Printf("[BLE] Connected to %s", deviceScanResult.LocalName())
 			c.publishConnection(true, deviceScanResult.RSSI)
 
 			discoverErrChan := make(chan error, 1)
@@ -278,12 +279,12 @@ func (c *Controller) Run(ctx context.Context) {
 			select {
 			case err := <-discoverErrChan:
 				if err != nil {
-					log.Printf("Service discovery failed: %v", err)
+					log.Printf("[BLE] Service discovery failed: %v", err)
 					device.Disconnect()
 					continue
 				}
 			case <-time.After(c.bleConnectTimeout):
-				log.Println("Service discovery timed out. Disconnecting...")
+				log.Println("[BLE] Service discovery timed out. Disconnecting...")
 				device.Disconnect()
 				time.Sleep(c.bleRetryDelay)
 				continue
@@ -292,7 +293,7 @@ func (c *Controller) Run(ctx context.Context) {
 				return
 			}
 
-			log.Println("BLEDOM device is ready.")
+			log.Println("[BLE] Device is ready.")
 
 			heartbeatTicker := time.NewTicker(c.bleHeartbeatInterval)
 			running := true
@@ -304,16 +305,16 @@ func (c *Controller) Run(ctx context.Context) {
 					if c.heartbeatChar.UUID() != (bluetooth.UUID{}) {
 						_, err := c.heartbeatChar.Read(heartbeatBuffer)
 						if err != nil {
-							log.Printf("Heartbeat failed: %v", err)
+							log.Printf("[BLE] Heartbeat failed: %v", err)
 							c.signalDisconnect()
 						}
 					}
 				case <-c.disconnectChan:
-					log.Println("Disconnection signal received. Resetting connection...")
+					log.Println("[BLE] Disconnection signal received. Resetting connection...")
 					running = false
 
 				case <-ctx.Done():
-					log.Println("Disconnecting due to shutdown...")
+					log.Println("[BLE] Disconnecting due to shutdown...")
 					device.Disconnect()
 					return
 				}
@@ -326,7 +327,7 @@ func (c *Controller) Run(ctx context.Context) {
 			c.heartbeatChar = bluetooth.DeviceCharacteristic{}
 
 			if err := device.Disconnect(); err != nil {
-				log.Printf("Disconnect warning: %v", err)
+				log.Printf("[BLE] Disconnect warning: %v", err)
 			}
 
 			time.Sleep(c.bleRetryDelay)

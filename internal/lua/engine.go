@@ -1,3 +1,4 @@
+// Package lua provides a Lua scripting engine for controlling BLE devices.
 package lua
 
 import (
@@ -57,6 +58,7 @@ func NewEngine(bleController *ble.Controller, patternsDir string, eb *core.Event
 	return e
 }
 
+// runLoop is the main worker loop that processes engine commands sequentially.
 func (e *Engine) runLoop() {
 	var currentCancel context.CancelFunc
 	var scriptDone chan struct{}
@@ -67,7 +69,7 @@ func (e *Engine) runLoop() {
 			select {
 			case <-scriptDone:
 			case <-time.After(2 * time.Second):
-				log.Println("Lua engine: timeout waiting for script to stop")
+				log.Println("[Lua] Timeout waiting for script to stop")
 			}
 			currentCancel = nil
 			scriptDone = nil
@@ -92,12 +94,12 @@ func (e *Engine) runLoop() {
 	}
 }
 
-// StopCurrentPattern stops the currently running script.
+// StopCurrentPattern stops the currently running script if any.
 func (e *Engine) StopCurrentPattern() {
 	select {
 	case e.cmdChan <- engineCmd{kind: cmdStop}:
 	default:
-		log.Println("Lua engine: command channel full, could not send stop")
+		log.Println("[Lua] Command channel full, could not send stop command")
 	}
 }
 
@@ -105,7 +107,7 @@ func (e *Engine) StopCurrentPattern() {
 func (e *Engine) RunPattern(name string) {
 	scriptPath, err := e.GetPatternPath(name)
 	if err != nil {
-		log.Printf("Could not get pattern path: %v", err)
+		log.Printf("[Lua] Could not get pattern path for '%s': %v", name, err)
 		return
 	}
 
@@ -116,7 +118,7 @@ func (e *Engine) RunPattern(name string) {
 	}
 }
 
-// ExecuteString prepares and sends a command to execute a one-off Lua command.
+// ExecuteString prepares and sends a command to execute a one-off Lua command string.
 func (e *Engine) ExecuteString(code string) {
 	e.cmdChan <- engineCmd{
 		kind: cmdRunString,
@@ -125,7 +127,7 @@ func (e *Engine) ExecuteString(code string) {
 	}
 }
 
-// sanitizeFilename checks for directory traversal and valid extension.
+// sanitizeFilename checks for directory traversal and ensures a valid .lua extension.
 func sanitizeFilename(name string) (string, error) {
 	if !strings.HasSuffix(name, ".lua") {
 		return "", fmt.Errorf("filename must end with .lua")
@@ -137,7 +139,7 @@ func sanitizeFilename(name string) (string, error) {
 	return cleanName, nil
 }
 
-// GetPatternPath returns the safe, absolute path to a pattern file using the engine's configured directory.
+// GetPatternPath returns the safe, absolute path to a pattern file within the engine's configured directory.
 func (e *Engine) GetPatternPath(name string) (string, error) {
 	cleanName, err := sanitizeFilename(name)
 	if err != nil {
@@ -145,13 +147,15 @@ func (e *Engine) GetPatternPath(name string) (string, error) {
 	}
 	// Ensure the base directory exists
 	if _, err := os.Stat(e.patternsDir); os.IsNotExist(err) {
-		log.Printf("Creating patterns directory: %s", e.patternsDir)
-		os.Mkdir(e.patternsDir, 0755)
+		log.Printf("[Lua] Creating patterns directory: %s", e.patternsDir)
+		if err := os.MkdirAll(e.patternsDir, 0755); err != nil {
+			return "", fmt.Errorf("failed to create patterns directory: %w", err)
+		}
 	}
 	return filepath.Join(e.patternsDir, cleanName), nil
 }
 
-// GetPatternCode reads the content of a pattern file.
+// GetPatternCode reads and returns the source code of a pattern file.
 func (e *Engine) GetPatternCode(name string) (string, error) {
 	path, err := e.GetPatternPath(name)
 	if err != nil {
@@ -164,7 +168,7 @@ func (e *Engine) GetPatternCode(name string) (string, error) {
 	return string(content), nil
 }
 
-// SavePatternCode writes content to a pattern file.
+// SavePatternCode writes the provided Lua source code to a pattern file.
 func (e *Engine) SavePatternCode(name, code string) error {
 	path, err := e.GetPatternPath(name)
 	if err != nil {
@@ -173,7 +177,7 @@ func (e *Engine) SavePatternCode(name, code string) error {
 	return os.WriteFile(path, []byte(code), 0644)
 }
 
-// DeletePattern removes a pattern file.
+// DeletePattern removes a pattern file by name.
 func (e *Engine) DeletePattern(name string) error {
 	path, err := e.GetPatternPath(name)
 	if err != nil {
@@ -182,7 +186,7 @@ func (e *Engine) DeletePattern(name string) error {
 	return os.Remove(path)
 }
 
-// GetPatternList returns a slice of all available pattern filenames.
+// GetPatternList scans the patterns directory and returns a list of available .lua files.
 func (e *Engine) GetPatternList() ([]string, error) {
 	var patterns []string
 	files, err := os.ReadDir(e.patternsDir)
@@ -200,7 +204,7 @@ func (e *Engine) GetPatternList() ([]string, error) {
 	return patterns, nil
 }
 
-// executeFile is the internal method called within a goroutine.
+// executeFile is an internal wrapper to run a Lua file within the worker's context.
 func (e *Engine) executeFile(name, path string, ctx context.Context, done chan struct{}) {
 	defer close(done)
 	e.execute(name, func(L *lua.LState) error {
@@ -208,7 +212,7 @@ func (e *Engine) executeFile(name, path string, ctx context.Context, done chan s
 	}, ctx)
 }
 
-// executeString is the internal method called within a goroutine.
+// executeString is an internal wrapper to run a Lua code string within the worker's context.
 func (e *Engine) executeString(name, code string, ctx context.Context, done chan struct{}) {
 	defer close(done)
 	e.execute(name, func(L *lua.LState) error {
@@ -216,9 +220,9 @@ func (e *Engine) executeString(name, code string, ctx context.Context, done chan
 	}, ctx)
 }
 
-// execute is a helper to run Lua code with a context.
+// execute is a helper to run Lua code using a fresh state and provided executor function.
 func (e *Engine) execute(name string, executor func(*lua.LState) error, ctx context.Context) {
-	log.Printf("Starting pattern '%s'...", name)
+	log.Printf("[Lua] Starting pattern '%s'...", name)
 	if e.eventBus != nil {
 		e.eventBus.Publish(core.Event{
 			Type: core.PatternChangedEvent,
@@ -229,7 +233,7 @@ func (e *Engine) execute(name string, executor func(*lua.LState) error, ctx cont
 	}
 
 	defer func() {
-		log.Printf("Pattern '%s' finished.", name)
+		log.Printf("[Lua] Pattern '%s' finished.", name)
 		if e.eventBus != nil {
 			e.eventBus.Publish(core.Event{
 				Type: core.PatternChangedEvent,
@@ -247,9 +251,9 @@ func (e *Engine) execute(name string, executor func(*lua.LState) error, ctx cont
 
 	if err := executor(L); err != nil {
 		if ctx.Err() == context.Canceled {
-			log.Printf("Lua pattern '%s' execution was canceled.", name)
+			log.Printf("[Lua] Pattern '%s' execution was canceled.", name)
 		} else {
-			log.Printf("Error executing Lua pattern '%s': %v", name, err)
+			log.Printf("[Lua] Error executing pattern '%s': %v", name, err)
 		}
 	}
 }

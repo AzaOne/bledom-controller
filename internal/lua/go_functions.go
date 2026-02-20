@@ -11,35 +11,43 @@ import (
 
 // registerGoFunctions exposes Go functions to the given Lua state.
 func (e *Engine) registerGoFunctions(L *lua.LState, ctx context.Context) {
+	// Basic control functions
 	L.SetGlobal("set_color", L.NewFunction(e.luaSetColor))
 	L.SetGlobal("set_brightness", L.NewFunction(e.luaSetBrightness))
 	L.SetGlobal("set_power", L.NewFunction(e.luaSetPower))
 	L.SetGlobal("print", L.NewFunction(luaPrint))
 
+	// Control flow and utility functions
 	L.SetGlobal("sleep", L.NewFunction(func(L *lua.LState) int { return e.luaSleepCancellable(L, ctx) }))
 	L.SetGlobal("should_stop", L.NewFunction(func(L *lua.LState) int { return e.luaShouldStop(L, ctx) }))
+
+	// Built-in animation effects
 	L.SetGlobal("breathe", L.NewFunction(func(L *lua.LState) int { return e.luaBreathe(L, ctx) }))
 	L.SetGlobal("strobe", L.NewFunction(func(L *lua.LState) int { return e.luaStrobe(L, ctx) }))
 	L.SetGlobal("fade", L.NewFunction(func(L *lua.LState) int { return e.luaFade(L, ctx) }))
 	L.SetGlobal("fade_brightness", L.NewFunction(func(L *lua.LState) int { return e.luaFadeBrightness(L, ctx) }))
 }
 
+// luaPrint is the Go implementation of the Lua print() function, routing output to the standard logger.
 func luaPrint(L *lua.LState) int {
-	log.Printf("[LUA] %s", L.ToString(1))
+	log.Printf("[Lua] %s", L.ToString(1))
 	return 0
 }
 
+// luaSetColor is the Go implementation for setting a static RGB color from Lua.
 func (e *Engine) luaSetColor(L *lua.LState) int {
 	r, g, b := L.ToInt(1), L.ToInt(2), L.ToInt(3)
 	e.bleController.SetColor(r, g, b)
 	return 0
 }
 
+// luaSetBrightness is the Go implementation for setting device brightness from Lua.
 func (e *Engine) luaSetBrightness(L *lua.LState) int {
 	e.bleController.SetBrightness(L.ToInt(1))
 	return 0
 }
 
+// luaSetPower is the Go implementation for toggling device power from Lua.
 func (e *Engine) luaSetPower(L *lua.LState) int {
 	e.bleController.SetPower(L.ToBool(1))
 	return 0
@@ -56,6 +64,7 @@ func cancellableSleep(ctx context.Context, d time.Duration) bool {
 	}
 }
 
+// luaSleepCancellable is the Go implementation for a non-blocking sleep from Lua that respects script cancellation.
 func (e *Engine) luaSleepCancellable(L *lua.LState, ctx context.Context) int {
 	ms := L.ToInt(1)
 	if cancellableSleep(ctx, time.Duration(ms)*time.Millisecond) {
@@ -64,12 +73,14 @@ func (e *Engine) luaSleepCancellable(L *lua.LState, ctx context.Context) int {
 	return 0
 }
 
+// luaSleepNoCancel is a Go implementation for a blocking sleep from Lua (not exposed by default).
 func luaSleepNoCancel(L *lua.LState) int {
 	ms := L.ToInt(1)
 	time.Sleep(time.Duration(ms) * time.Millisecond)
 	return 0
 }
 
+// luaShouldStop allows a Lua script to check if it has been requested to stop.
 func (e *Engine) luaShouldStop(L *lua.LState, ctx context.Context) int {
 	select {
 	case <-ctx.Done():
@@ -80,8 +91,7 @@ func (e *Engine) luaShouldStop(L *lua.LState, ctx context.Context) int {
 	return 1
 }
 
-// luaBreathe performs a smooth pulse animation from 1% to 100% and back to 1% brightness
-// over the specified duration. The color should be set before calling this function.
+// luaBreathe performs a smooth pulse animation of brightness over the specified duration.
 func (e *Engine) luaBreathe(L *lua.LState, ctx context.Context) int {
 	durationMs := L.ToInt(1)
 	duration := time.Duration(durationMs) * time.Millisecond

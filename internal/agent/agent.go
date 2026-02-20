@@ -1,3 +1,4 @@
+// Package agent provides the central orchestration for the BLEDOM controller.
 package agent
 
 import (
@@ -17,6 +18,7 @@ import (
 	"bledom-controller/internal/server"
 )
 
+// Agent represents the main orchestration unit that coordinates BLE, Lua, MQTT, and Server components.
 type Agent struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -34,6 +36,7 @@ type Agent struct {
 	mqttClient    *mqtt.Client
 }
 
+// NewAgent creates and initializes a new Agent with the provided configuration.
 func NewAgent(cfg *config.Config) (*Agent, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -46,7 +49,7 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 		commandChannel: make(core.CommandChannel, 20),
 	}
 
-	// Налаштування Bluetooth
+	// Bluetooth configuration
 	bleScanTimeout, _ := time.ParseDuration(cfg.BLE.ScanTimeout)
 	bleConnectTimeout, _ := time.ParseDuration(cfg.BLE.ConnectTimeout)
 	bleHeartbeatInterval, _ := time.ParseDuration(cfg.BLE.HeartbeatInterval)
@@ -87,7 +90,7 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 	return a, nil
 }
 
-// Run starts the agent orchestration loop.
+// Run starts the agent orchestration loop and all sub-components.
 func (a *Agent) Run() {
 	// Hook up event subscriptions to maintain the central state and handle resync logic
 	go a.listenEvents()
@@ -108,19 +111,19 @@ func (a *Agent) Run() {
 
 	a.scheduler.Start()
 
-	log.Printf("Agent running on http://localhost:%s", a.config.Server.Port)
+	log.Printf("[Agent] API running on http://localhost:%s", a.config.Server.Port)
 	go func() {
 		if err := a.server.ListenAndServe(); err != nil {
-			log.Printf("Server error: %v", err)
+			log.Printf("[Agent] Server error: %v", err)
 		}
 	}()
 
 	// Orchestrator Central Command Loop
-	log.Println("Agent orchestrator ready.")
+	log.Println("[Agent] Orchestrator ready.")
 	for {
 		select {
 		case <-a.ctx.Done():
-			log.Println("Agent orchestrator shutting down...")
+			log.Println("[Agent] Orchestrator shutting down...")
 			return
 		case cmd := <-a.commandChannel:
 			a.handleCommand(cmd)
@@ -146,11 +149,11 @@ func (a *Agent) listenEvents() {
 							a.state.SetConnection(connected, rssi)
 
 							if !wasConnected && connected {
-								log.Println("Device connected, checking for a pattern to resume.")
+								log.Println("[Agent] Device connected, checking for a pattern to resume.")
 								patternToResume := a.state.Clone().RunningPattern
 
 								if patternToResume != "" {
-									log.Printf("Resuming pattern: %s", patternToResume)
+									log.Printf("[Agent] Resuming pattern: %s", patternToResume)
 									a.luaEngine.RunPattern(patternToResume)
 								}
 							}
@@ -163,7 +166,7 @@ func (a *Agent) listenEvents() {
 						a.state.SetRunningPattern(pattern)
 
 						if pattern == "" {
-							log.Println("Pattern finished. Syncing final state.")
+							log.Println("[Agent] Pattern finished. Syncing final state.")
 							a.syncState()
 						}
 					}
@@ -235,7 +238,7 @@ func (a *Agent) handleCommand(cmd core.Command) {
 		}
 		a.state.SetBrightness(val)
 		a.bleController.SetBrightness(val)
-		a.eventBus.Publish(core.Event{Type: core.StateChangedEvent, Payload: map[string]interface{}{"brightness": val}}) // Partial state change can be published this way too or just resync all
+		a.eventBus.Publish(core.Event{Type: core.StateChangedEvent, Payload: map[string]interface{}{"brightness": val}})
 
 	case core.CmdSetSpeed:
 		val := 50
@@ -339,7 +342,7 @@ func (a *Agent) handleCommand(cmd core.Command) {
 					a.server.Hub.Broadcast(server.NewMessage("pattern_code", map[string]string{"name": name, "code": content}))
 				}
 			} else {
-				log.Printf("Error getting pattern code: %v", err)
+				log.Printf("[Agent] Error getting pattern code for '%s': %v", name, err)
 			}
 		}
 
@@ -348,7 +351,7 @@ func (a *Agent) handleCommand(cmd core.Command) {
 		code, codeOk := cmd.Payload["code"].(string)
 		if nameOk && codeOk {
 			if err := a.luaEngine.SavePatternCode(name, code); err != nil {
-				log.Printf("Error saving pattern: %v", err)
+				log.Printf("[Agent] Error saving pattern '%s': %v", name, err)
 			} else {
 				patterns, _ := a.luaEngine.GetPatternList()
 				if a.server != nil && a.server.Hub != nil {
@@ -360,7 +363,7 @@ func (a *Agent) handleCommand(cmd core.Command) {
 	case core.CmdDeletePattern:
 		if name, ok := cmd.Payload["name"].(string); ok {
 			if err := a.luaEngine.DeletePattern(name); err != nil {
-				log.Printf("Error deleting pattern '%s': %v", name, err)
+				log.Printf("[Agent] Error deleting pattern '%s': %v", name, err)
 			} else {
 				patterns, _ := a.luaEngine.GetPatternList()
 				if a.server != nil && a.server.Hub != nil {
@@ -370,11 +373,11 @@ func (a *Agent) handleCommand(cmd core.Command) {
 		}
 
 	default:
-		log.Printf("Unknown command type: %s", cmd.Type)
+		log.Printf("[Agent] Unknown command type: %s", cmd.Type)
 	}
 }
 
-// syncState зчитує актуальний стан з BLE контролера і розсилає його
+// syncState reads the latest state from the BLE controller and synchronizes it with the central state and event bus.
 func (a *Agent) syncState() {
 	bs := a.bleController.GetState()
 
@@ -400,6 +403,7 @@ func (a *Agent) syncState() {
 	})
 }
 
+// Shutdown gracefully stops all agent components and wait groups.
 func (a *Agent) Shutdown() {
 	a.scheduler.Stop()
 	_ = a.server.Shutdown(context.Background())
