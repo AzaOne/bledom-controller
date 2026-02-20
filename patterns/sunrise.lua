@@ -32,7 +32,7 @@ end
 
 -- CONFIG
 local BR_MIN = 100
-local BR_DUSK = 50
+local BR_DUSK = 100
 local BR_MAX = 100
 local DEFAULT_TRANS_MS = 60 * 1000
 

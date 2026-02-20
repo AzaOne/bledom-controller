@@ -11,45 +11,72 @@ import (
 	"bledom-controller/internal/ble"
 	"bledom-controller/internal/config"
 	"bledom-controller/internal/lua"
+	"bledom-controller/internal/server"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-// Client manages the MQTT connection and subscriptions.
 type Client struct {
 	client        mqtt.Client
 	cfg           *config.Config
 	bleController *ble.Controller
 	luaEngine     *lua.Engine
+	hub           *server.Hub // Доступ до Hub для оновлення WS
 	prefix        string
 }
 
-// NewClient creates a new MQTT client wrapper.
-func NewClient(cfg *config.Config, bc *ble.Controller, le *lua.Engine) *Client {
-	if !cfg.MQTTEnabled {
+// NewClient створює клієнта з покращеною логікою реконекту.
+func NewClient(cfg *config.Config, bc *ble.Controller, le *lua.Engine, hub *server.Hub) *Client {
+	if !cfg.MQTT.Enabled {
 		return nil
 	}
 
-	opts := mqtt.NewClientOptions()
-	opts.AddBroker(cfg.MQTTBroker)
-	opts.SetClientID(cfg.MQTTClientId)
-	opts.SetUsername(cfg.MQTTUsername)
-	opts.SetPassword(cfg.MQTTPassword)
-	opts.SetAutoReconnect(true)
+	// Формуємо префікс топіків, прибираючи зайві слеші в кінці
+	prefix := strings.TrimSuffix(cfg.MQTT.TopicPrefix, "/")
 
-	// Set Last Will and Testament (LWT)
-	prefix := strings.TrimSuffix(cfg.MQTTTopicPrefix, "/")
+	opts := mqtt.NewClientOptions()
+	opts.AddBroker(cfg.MQTT.Broker)
+	opts.SetClientID(cfg.MQTT.ClientID)
+	opts.SetUsername(cfg.MQTT.Username)
+	opts.SetPassword(cfg.MQTT.Password)
+
+	// --- Налаштування стабільності з'єднання ---
+
+	// KeepAlive: частота пінгування брокера (10 сек)
+	opts.SetKeepAlive(10 * time.Second)
+	// PingTimeout: скільки чекати відповіді на пінг (5 сек)
+	opts.SetPingTimeout(5 * time.Second)
+
+	// AutoReconnect: відновлювати з'єднання після розриву
+	opts.SetAutoReconnect(true)
+	opts.SetMaxReconnectInterval(1 * time.Minute)
+
+	// ConnectRetry: намагатися підключитися при старті, навіть якщо брокер лежить (важливо для Docker)
+	// Це дозволяє уникнути негайного падіння, якщо MQTT контейнер ще не завантажився.
+	opts.SetConnectRetry(true)
+	opts.SetConnectRetryInterval(5 * time.Second)
+
+	// OrderMatters: false покращує пропускну здатність, оскільки не блокує обробку повідомлень
+	opts.SetOrderMatters(false)
+
+	// LWT (Last Will and Testament): Повідомлення, яке брокер надішле сам, якщо ми "впадемо"
 	opts.SetWill(prefix+"/availability", "offline", 1, true)
 
 	c := &Client{
 		cfg:           cfg,
 		bleController: bc,
 		luaEngine:     le,
+		hub:           hub,
 		prefix:        prefix,
 	}
 
 	opts.SetOnConnectHandler(c.onConnect)
+
 	opts.SetConnectionLostHandler(func(client mqtt.Client, err error) {
-		log.Printf("[MQTT] Connection lost: %v", err)
+		log.Printf("[MQTT] Connection lost: %v. Retrying in background...", err)
+	})
+
+	opts.SetReconnectingHandler(func(client mqtt.Client, options *mqtt.ClientOptions) {
+		log.Println("[MQTT] Attempting to reconnect...")
 	})
 
 	c.client = mqtt.NewClient(opts)
@@ -57,50 +84,75 @@ func NewClient(cfg *config.Config, bc *ble.Controller, le *lua.Engine) *Client {
 	return c
 }
 
-// Connect starts the MQTT connection.
+// Connect ініціює підключення.
 func (c *Client) Connect() error {
 	if c.client == nil {
 		return nil
 	}
-	log.Printf("[MQTT] Connecting to %s...", c.cfg.MQTTBroker)
-	if token := c.client.Connect(); token.Wait() && token.Error() != nil {
+	log.Printf("[MQTT] Starting connection loop to %s...", c.cfg.MQTT.Broker)
+
+	token := c.client.Connect()
+	// Чекаємо завершення першої спроби рукостискання.
+	// Якщо ConnectRetry=true, то помилка тут означатиме скоріше проблеми з конфігурацією (наприклад, невалідний протокол),
+	// аніж просто недоступність мережі.
+	if token.Wait() && token.Error() != nil {
+		log.Printf("[MQTT] Initial connection error: %v", token.Error())
 		return token.Error()
 	}
+
 	return nil
 }
 
-// Disconnect cleans up the connection gracefully.
+// Disconnect коректно завершує роботу: спочатку надсилає offline статус, потім закриває сокет.
 func (c *Client) Disconnect() {
 	if c.client != nil && c.client.IsConnected() {
-		c.Publish("availability", "offline", true)
+		log.Println("[MQTT] Disconnecting...")
+
+		// 1. Явно відправляємо статус offline перед розривом
+		token := c.client.Publish(c.prefix+"/availability", 0, true, "offline")
+		
+		// Чекаємо завершення публікації з таймаутом (щоб не зависнути при виході)
+		if token.WaitTimeout(2 * time.Second) {
+			if token.Error() != nil {
+				log.Printf("[MQTT] Warning: failed to publish offline status: %v", token.Error())
+			}
+		} else {
+			log.Println("[MQTT] Warning: timed out publishing offline status")
+		}
+
+		// 2. Закриваємо з'єднання
 		c.client.Disconnect(250)
 		log.Println("[MQTT] Disconnected.")
 	}
 }
 
-// Publish sends a message to a subtopic.
 func (c *Client) Publish(subtopic string, payload interface{}, retained bool) {
 	if c.client == nil || !c.client.IsConnected() {
 		return
 	}
+
 	topic := fmt.Sprintf("%s/%s", c.prefix, subtopic)
 	msg := fmt.Sprintf("%v", payload)
 
 	token := c.client.Publish(topic, 0, retained, msg)
-	token.Wait()
+
+	// Не блокуємо основний потік, але і не допускаємо витоку горутин
+	go func() {
+		if token.WaitTimeout(5 * time.Second) {
+			if token.Error() != nil {
+				log.Printf("[MQTT] Publish error to %s: %v", topic, token.Error())
+			}
+		} else {
+			log.Printf("[MQTT] Timeout publishing to %s", topic)
+		}
+	}()
 }
 
-// onConnect is called when the client successfully connects.
+// onConnect викликається бібліотекою Paho у внутрішній горутині обробки подій.
 func (c *Client) onConnect(client mqtt.Client) {
 	log.Println("[MQTT] Connected to broker.")
 
-	c.Publish("availability", "online", true)
-
-	// Trigger Home Assistant Discovery
-	if c.cfg.MQTTHADiscoveryEnabled {
-		go c.PublishHADiscovery()
-	}
-
+	// Підписка на топіки
 	topics := map[string]mqtt.MessageHandler{
 		"power/set":      c.handlePower,
 		"brightness/set": c.handleBrightness,
@@ -111,18 +163,27 @@ func (c *Client) onConnect(client mqtt.Client) {
 
 	for sub, handler := range topics {
 		topic := fmt.Sprintf("%s/%s", c.prefix, sub)
-		if token := client.Subscribe(topic, 0, handler); token.Wait() && token.Error() != nil {
+		if token := client.Subscribe(topic, 1, handler); token.Wait() && token.Error() != nil {
 			log.Printf("[MQTT] Error subscribing to %s: %v", topic, token.Error())
 		} else {
 			log.Printf("[MQTT] Subscribed to %s", topic)
 		}
 	}
+
+	// Відправка Discovery та статусу Online.
+	// Виконуємо в окремій горутині, щоб не блокувати onConnect (оскільки PublishHADiscovery має sleep).
+	go func() {
+		c.Publish("availability", "online", true)
+		if c.cfg.MQTT.HADiscoveryEnabled {
+			c.PublishHADiscovery()
+		}
+	}()
 }
 
-// PublishHADiscovery sends the configuration payload for Home Assistant Auto Discovery.
+// PublishHADiscovery надсилає конфігурацію для Home Assistant
 func (c *Client) PublishHADiscovery() {
-	// Small delay to ensure Lua engine has loaded patterns
-	time.Sleep(2 * time.Second)
+	// Даємо трохи часу, щоб переконатися, що підписки пройшли і система стабільна
+	time.Sleep(1 * time.Second)
 
 	patterns, err := c.luaEngine.GetPatternList()
 	if err != nil {
@@ -130,8 +191,8 @@ func (c *Client) PublishHADiscovery() {
 		patterns = []string{}
 	}
 
-	// Create a safe unique ID based on the configured ClientID
-	safeID := strings.ReplaceAll(c.cfg.MQTTClientId, " ", "_")
+	safeID := strings.ReplaceAll(c.cfg.MQTT.ClientID, " ", "_")
+	// Санітизація ID
 	safeID = strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
 			return r
@@ -139,8 +200,7 @@ func (c *Client) PublishHADiscovery() {
 		return -1
 	}, safeID)
 
-	// Topic structure: <discovery_prefix>/light/<node_id>/<object_id>/config
-	discoveryTopic := fmt.Sprintf("%s/light/%s/light/config", c.cfg.MQTTHADiscoveryPrefix, safeID)
+	discoveryTopic := fmt.Sprintf("%s/light/%s/light/config", c.cfg.MQTT.HADiscoveryPrefix, safeID)
 
 	payload := map[string]interface{}{
 		"name":      "Light",
@@ -148,129 +208,130 @@ func (c *Client) PublishHADiscovery() {
 		"object_id": safeID,
 		"icon":      "mdi:led-strip",
 
-		// Power
 		"command_topic": fmt.Sprintf("%s/power/set", c.prefix),
 		"state_topic":   fmt.Sprintf("%s/power/state", c.prefix),
 
-		// Brightness
 		"brightness_command_topic": fmt.Sprintf("%s/brightness/set", c.prefix),
 		"brightness_state_topic":   fmt.Sprintf("%s/brightness/state", c.prefix),
-		"brightness_scale":         100, // BLEDOM uses 0-100, HA defaults to 0-255
+		"brightness_scale":         100,
 
-		// RGB Color
 		"rgb_command_topic": fmt.Sprintf("%s/color/set", c.prefix),
 		"rgb_state_topic":   fmt.Sprintf("%s/color/state", c.prefix),
 
-		// Effects (Lua Patterns)
 		"effect_command_topic": fmt.Sprintf("%s/pattern/run", c.prefix),
 		"effect_state_topic":   fmt.Sprintf("%s/pattern/state", c.prefix),
 		"effect_list":          patterns,
 
-		// Availability
-		"availability_topic":    fmt.Sprintf("%s/availability", c.prefix),
-		"payload_available":     "online",
-		"payload_not_available": "offline",
+		// Налаштування доступності (Availability)
+		"availability_mode": "all",
+		"availability": []map[string]string{
+			{
+				"topic":                 fmt.Sprintf("%s/availability", c.prefix),
+				"payload_available":     "online",
+				"payload_not_available": "offline",
+			},
+			{
+				"topic":                 fmt.Sprintf("%s/connection", c.prefix),
+				"payload_available":     "connected",
+				"payload_not_available": "disconnected",
+			},
+		},
 
-		// Device Registry
 		"device": map[string]interface{}{
 			"identifiers":  []string{safeID},
 			"name":         "BLEDOM Controller",
 			"manufacturer": "AzaOne",
 			"model":        "BLEDOM BLE Agent",
-			"sw_version":   "1.1-mqtt",
+			"sw_version":   "1.5-mqtt-robust",
 		},
 	}
 
-	jsonPayload, err := json.Marshal(payload)
-	if err != nil {
-		log.Printf("[MQTT] Error marshaling HA discovery: %v", err)
-		return
-	}
-
-	log.Printf("[MQTT] Sending Home Assistant discovery config to %s", discoveryTopic)
-	// Retained message so HA sees it on reboot
-	token := c.client.Publish(discoveryTopic, 0, true, jsonPayload)
-	token.Wait()
+	jsonPayload, _ := json.Marshal(payload)
+	c.client.Publish(discoveryTopic, 0, true, jsonPayload)
+	log.Printf("[MQTT] HA Discovery sent to %s", discoveryTopic)
 }
 
-// --- Message Handlers ---
+// --- Handlers (Sync to WS and update State) ---
 
 func (c *Client) handlePower(client mqtt.Client, msg mqtt.Message) {
 	payload := strings.ToLower(string(msg.Payload()))
-	log.Printf("[MQTT] Command received: power %s", payload)
-
+	var isOn bool
 	switch payload {
 	case "on", "true", "1":
-		c.luaEngine.StopCurrentPattern()
-		c.bleController.SetPower(true)
-		c.Publish("power/state", "ON", true)
+		isOn = true
 	case "off", "false", "0":
-		c.luaEngine.StopCurrentPattern()
-		c.bleController.SetPower(false)
-		c.Publish("power/state", "OFF", true)
+		isOn = false
+	default:
+		return
 	}
+
+	c.luaEngine.StopCurrentPattern()
+	c.bleController.SetPower(isOn)
+
+	// Update MQTT State
+	c.Publish("power/state", strings.ToUpper(payload), true)
+
+	// Sync WebSocket clients
+	c.hub.Broadcast(server.NewMessage("power_update", map[string]bool{"isOn": isOn}))
 }
 
 func (c *Client) handleBrightness(client mqtt.Client, msg mqtt.Message) {
 	payload := string(msg.Payload())
 	val, err := strconv.Atoi(payload)
 	if err == nil {
-		log.Printf("[MQTT] Command received: brightness %d", val)
 		c.bleController.SetBrightness(val)
 		c.Publish("brightness/state", val, true)
+
+		// Sync WebSocket clients
+		c.hub.Broadcast(server.NewMessage("brightness_update", map[string]int{"value": val}))
 	}
 }
 
 func (c *Client) handleColor(client mqtt.Client, msg mqtt.Message) {
 	payload := string(msg.Payload())
-	log.Printf("[MQTT] Command received: color %s", payload)
-
 	c.luaEngine.StopCurrentPattern()
 
 	var r, g, b int
+	var colorHex string
+	processed := false
 
-	// 1. Try Hex Format (#RRGGBB or RRGGBB)
-	cleanHex := strings.TrimPrefix(payload, "#")
-	if len(cleanHex) == 6 {
+	// Логіка парсингу (HEX або RGB)
+	if strings.HasPrefix(payload, "#") || len(payload) == 6 {
+		cleanHex := strings.TrimPrefix(payload, "#")
 		if _, err := fmt.Sscanf(cleanHex, "%02x%02x%02x", &r, &g, &b); err == nil {
-			c.bleController.SetColor(r, g, b)
-			c.Publish("color/state", fmt.Sprintf("#%02X%02X%02X", r, g, b), true)
-			return
+			processed = true
+			colorHex = fmt.Sprintf("#%02X%02X%02X", r, g, b)
+		}
+	} else if strings.Contains(payload, ",") {
+		parts := strings.Split(payload, ",")
+		if len(parts) == 3 {
+			r, _ = strconv.Atoi(strings.TrimSpace(parts[0]))
+			g, _ = strconv.Atoi(strings.TrimSpace(parts[1]))
+			b, _ = strconv.Atoi(strings.TrimSpace(parts[2]))
+			processed = true
+			colorHex = fmt.Sprintf("#%02X%02X%02X", r, g, b)
 		}
 	}
 
-	// 2. Try JSON Format {"r": 255, "g": 0, "b": 0}
-	type ColorJSON struct {
-		R int `json:"r"`
-		G int `json:"g"`
-		B int `json:"b"`
-	}
-	var cObj ColorJSON
-	if err := json.Unmarshal(msg.Payload(), &cObj); err == nil {
-		c.bleController.SetColor(cObj.R, cObj.G, cObj.B)
-		c.Publish("color/state", fmt.Sprintf("#%02X%02X%02X", cObj.R, cObj.G, cObj.B), true)
-		return
-	}
-
-	// 3. Try CSV Format "255,0,0" (Default HA RGB format)
-	parts := strings.Split(payload, ",")
-	if len(parts) == 3 {
-		r, _ = strconv.Atoi(strings.TrimSpace(parts[0]))
-		g, _ = strconv.Atoi(strings.TrimSpace(parts[1]))
-		b, _ = strconv.Atoi(strings.TrimSpace(parts[2]))
+	if processed {
 		c.bleController.SetColor(r, g, b)
-		// Convert back to Hex for state consistency, or send CSV back if preferred
-		c.Publish("color/state", fmt.Sprintf("%d,%d,%d", r, g, b), true)
+
+		rgbString := fmt.Sprintf("%d,%d,%d", r, g, b)
+		c.Publish("color/state", rgbString, true)
+
+		// Для Web UI відправляємо HEX і окремі компоненти
+		c.hub.Broadcast(server.NewMessage("color_update", map[string]interface{}{
+			"r": r, "g": g, "b": b, "hex": colorHex,
+		}))
 	}
 }
 
 func (c *Client) handlePatternRun(client mqtt.Client, msg mqtt.Message) {
 	name := string(msg.Payload())
-	log.Printf("[MQTT] Command received: run pattern %s", name)
+	// Callback агента, переданий в engine, зробить Broadcast статусу
 	go c.luaEngine.RunPattern(name, nil)
 }
 
 func (c *Client) handlePatternStop(client mqtt.Client, msg mqtt.Message) {
-	log.Printf("[MQTT] Command received: stop pattern")
 	c.luaEngine.StopCurrentPattern()
 }

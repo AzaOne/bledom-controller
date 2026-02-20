@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -18,84 +16,22 @@ var (
 	date   = "unknown"
 )
 
-// LoadConfig reads the configuration from config.json, applying defaults.
-func LoadConfig(path string) (*config.Config, error) {
-	// Initialize with default values
-	cfg := config.Config{
-		ServerPort:               "8080",
-		StaticFilesDir:           "./static",
-		AllowedOrigins:           []string{"http://localhost:8080"},
-		DeviceNames:              []string{"ELK-BLEDOM   ", "BLEDOM"},
-		BLEScanTimeout:           "30s",
-		BLEConnectTimeout:        "7s",
-		BLEHeartbeatInterval:     "60s",
-		BLERetryDelay:            "5s",
-		BLECommandRateLimitRate:  25.0,
-		BLECommandRateLimitBurst: 25,
-		PatternsDir:              "patterns",
-		SchedulesFile:            "schedules.json",
-
-		// MQTT Defaults
-		MQTTEnabled:     false,
-		MQTTBroker:      "tcp://localhost:1883",
-		MQTTClientId:    "bledom-controller",
-		MQTTTopicPrefix: "bledom",
-
-		// HA Discovery Defaults
-		MQTTHADiscoveryEnabled: true,
-		MQTTHADiscoveryPrefix:  "homeassistant",
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			log.Printf("Config file '%s' not found. Using default values.", path)
-			return &cfg, nil
-		}
-		return nil, fmt.Errorf("failed to read config file '%s': %w", path, err)
-	}
-
-	// Unmarshal into the cfg struct, which will override defaults if specified in JSON
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config file '%s': %w", path, err)
-	}
-
-	// Post-unmarshal validation/defaulting for essential fields if they could be empty in JSON
-	if cfg.ServerPort == "" {
-		cfg.ServerPort = "8080"
-	}
-	if cfg.StaticFilesDir == "" {
-		cfg.StaticFilesDir = "./static"
-	}
-	if cfg.PatternsDir == "" {
-		cfg.PatternsDir = "patterns"
-	}
-	if cfg.SchedulesFile == "" {
-		cfg.SchedulesFile = "schedules.json"
-	}
-	// Ensure rate limit values are sensible
-	if cfg.BLECommandRateLimitRate <= 0 {
-		cfg.BLECommandRateLimitRate = 1.0 // Minimum 1 command/sec
-		log.Printf("Warning: BLECommandRateLimitRate was invalid or zero, defaulted to %.1f", cfg.BLECommandRateLimitRate)
-	}
-	if cfg.BLECommandRateLimitBurst <= 0 {
-		cfg.BLECommandRateLimitBurst = 1 // Minimum burst of 1
-		log.Printf("Warning: BLECommandRateLimitBurst was invalid or zero, defaulted to %d", cfg.BLECommandRateLimitBurst)
-	}
-
-	return &cfg, nil
-}
-
 func main() {
 	log.Printf("Starting BLEDOM Controller Agent commit: %s, built: %s", commit, date)
 
 	configPath := "./config.json"
-	cfg, err := LoadConfig(configPath)
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
-	log.Printf("Configuration loaded: ServerPort=%s, StaticFilesDir=%s, PatternsDir=%s, SchedulesFile=%s, BLECommandRateLimitRate=%.1f/s, BLECommandRateLimitBurst=%d",
-		cfg.ServerPort, cfg.StaticFilesDir, cfg.PatternsDir, cfg.SchedulesFile, cfg.BLECommandRateLimitRate, cfg.BLECommandRateLimitBurst)
+
+	log.Printf("Configuration loaded: Port=%s, StaticDir=%s, PatternsDir=%s, SchedulesFile=%s, BLE Rate=%.1f/s",
+		cfg.Server.Port, 
+		cfg.Server.StaticFilesDir, 
+		cfg.PatternsDir, 
+		cfg.SchedulesFile, 
+		cfg.BLE.RateLimit,
+	)
 
 	a, err := agent.NewAgent(cfg)
 	if err != nil {

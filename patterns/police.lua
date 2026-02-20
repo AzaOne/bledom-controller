@@ -27,4 +27,9 @@ while true do
 
   -- Another check to make the pattern very responsive
   if should_stop() then return end
+  
+  -- Flash RED
+  set_color(255, 0, 0)
+  sleep(100) -- Wait 100 milliseconds
+  
 end

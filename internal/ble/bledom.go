@@ -3,6 +3,7 @@ package ble
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -16,16 +17,21 @@ var (
 	defaultCharacteristicUUIDStr = "0000fff3-0000-1000-8000-00805f9b34fb"
 )
 
+// State зберігає поточний стан пристрою
+type State struct {
+	IsOn       bool
+	R, G, B    int
+	Brightness int
+	Speed      int
+}
+
 // Controller manages the BLE connection and commands.
 type Controller struct {
 	characteristic bluetooth.DeviceCharacteristic
 	heartbeatChar  bluetooth.DeviceCharacteristic
-	
-	// disconnectChan: Використовується для сигналізації про розрив з'єднання.
-	// Створюється один раз і є буферизованим.
+
 	disconnectChan chan struct{}
-	
-	commandChan chan []byte
+	commandChan    chan []byte
 
 	deviceNames           []string
 	bleServiceUUID        bluetooth.UUID
@@ -35,6 +41,10 @@ type Controller struct {
 	bleHeartbeatInterval  time.Duration
 	bleRetryDelay         time.Duration
 	bleCommandLimiter     *rate.Limiter
+
+	// --- Збереження стану ---
+	state   State
+	stateMu sync.RWMutex
 }
 
 // NewController creates a new BLE controller.
@@ -51,13 +61,29 @@ func NewController(ctx context.Context, deviceNames []string, scanTimeout, conne
 		bleHeartbeatInterval:  heartbeatInterval,
 		bleRetryDelay:         retryDelay,
 		commandChan:           make(chan []byte, commandRateLimitBurst*2),
-		// Буферизований канал (1), щоб не блокувати відправника
-		disconnectChan:        make(chan struct{}, 1), 
+		disconnectChan:        make(chan struct{}, 1),
 		bleCommandLimiter:     rate.NewLimiter(rate.Limit(commandRateLimitRate), commandRateLimitBurst),
+
+		// Початковий стан
+		state: State{
+			IsOn:       false,
+			R:          255,
+			G:          255,
+			B:          255,
+			Brightness: 100,
+			Speed:      50,
+		},
 	}
 
 	go c.commandWriterLoop(ctx)
 	return c
+}
+
+// GetState повертає копію поточного стану (thread-safe)
+func (c *Controller) GetState() State {
+	c.stateMu.RLock()
+	defer c.stateMu.RUnlock()
+	return c.state
 }
 
 // Write sends a byte command.
@@ -81,10 +107,8 @@ func (c *Controller) commandWriterLoop(ctx context.Context) {
 				return
 			}
 
-			// ВИПРАВЛЕННЯ ТУТ: Додано дужки до UUID(), бо це метод
 			if c.characteristic.UUID() == (bluetooth.UUID{}) {
-				// Пристрій не підключено або характеристика не ініціалізована, ігноруємо команду
-				continue 
+				continue
 			}
 
 			_, err := c.characteristic.WriteWithoutResponse(payload)
@@ -101,7 +125,6 @@ func (c *Controller) signalDisconnect() {
 	select {
 	case c.disconnectChan <- struct{}{}:
 	default:
-		// Вже є сигнал в каналі або ніхто не слухає, це нормально
 	}
 }
 
@@ -132,24 +155,19 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 				continue
 			}
 
-			// Очищаємо канал роз'єднання перед новим циклом
 			select {
 			case <-c.disconnectChan:
 			default:
 			}
 
-			// Скидаємо характеристики
 			c.characteristic = bluetooth.DeviceCharacteristic{}
 			c.heartbeatChar = bluetooth.DeviceCharacteristic{}
 
 			log.Println("Scanning for BLEDOM device...")
-			
-			// Примусово зупиняємо попередній скан, якщо він завис
-			adapter.StopScan() 
+			adapter.StopScan()
 
 			ch := make(chan bluetooth.ScanResult, 1)
-			
-			// Запуск сканування
+
 			go func() {
 				err := adapter.Scan(func(adapter *bluetooth.Adapter, result bluetooth.ScanResult) {
 					if contains(c.deviceNames, result.LocalName()) {
@@ -166,8 +184,6 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 			}()
 
 			var deviceScanResult bluetooth.ScanResult
-			
-			// Очікування результатів сканування
 			scanCtx, cancelScan := context.WithTimeout(ctx, c.bleScanTimeout)
 			select {
 			case deviceScanResult = <-ch:
@@ -181,12 +197,11 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 				continue
 			}
 
-			// 2. Connect (With Timeout Wrapper)
 			var device bluetooth.Device
 			connectErrChan := make(chan error, 1)
-			
+
 			log.Printf("Connecting to %s...", deviceScanResult.Address.String())
-			
+
 			go func() {
 				d, err := adapter.Connect(deviceScanResult.Address, bluetooth.ConnectionParams{})
 				if err == nil {
@@ -204,8 +219,8 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 					continue
 				}
 			case <-time.After(c.bleConnectTimeout):
-				log.Println("Connection attempt timed out (BlueZ stuck?). Retrying...")
-				adapter.StopScan() 
+				log.Println("Connection attempt timed out. Retrying...")
+				adapter.StopScan()
 				time.Sleep(c.bleRetryDelay)
 				continue
 			case <-ctx.Done():
@@ -215,7 +230,6 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 			log.Printf("Connected to %s", deviceScanResult.LocalName())
 			onStatusChange(true, deviceScanResult.RSSI)
 
-			// 3. Discover Services (With Timeout Wrapper)
 			discoverErrChan := make(chan error, 1)
 			go func() {
 				services, err := device.DiscoverServices([]bluetooth.UUID{c.bleServiceUUID})
@@ -223,7 +237,7 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 					discoverErrChan <- err
 					return
 				}
-				
+
 				chars, err := services[0].DiscoverCharacteristics([]bluetooth.UUID{c.bleCharacteristicUUID})
 				if err != nil || len(chars) == 0 {
 					discoverErrChan <- err
@@ -231,7 +245,6 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 				}
 				c.characteristic = chars[0]
 
-				// Heartbeat discovery (optional)
 				genericAccessUUID, _ := bluetooth.ParseUUID("00001800-0000-1000-8000-00805f9b34fb")
 				deviceNameUUID, _ := bluetooth.ParseUUID("00002a00-0000-1000-8000-00805f9b34fb")
 				gaServices, _ := device.DiscoverServices([]bluetooth.UUID{genericAccessUUID})
@@ -263,7 +276,6 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 
 			log.Println("BLEDOM device is ready.")
 
-			// 4. Heartbeat Loop
 			heartbeatTicker := time.NewTicker(c.bleHeartbeatInterval)
 			running := true
 			heartbeatBuffer := make([]byte, 20)
@@ -277,7 +289,7 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 							log.Printf("Heartbeat failed: %v", err)
 							c.signalDisconnect()
 						}
-					} 
+					}
 				case <-c.disconnectChan:
 					log.Println("Disconnection signal received. Resetting connection...")
 					running = false
@@ -291,14 +303,14 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 
 			heartbeatTicker.Stop()
 			onStatusChange(false, 0)
-			
+
 			c.characteristic = bluetooth.DeviceCharacteristic{}
 			c.heartbeatChar = bluetooth.DeviceCharacteristic{}
-			
+
 			if err := device.Disconnect(); err != nil {
 				log.Printf("Disconnect warning: %v", err)
 			}
-			
+
 			time.Sleep(c.bleRetryDelay)
 		}
 	}

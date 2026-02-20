@@ -1,32 +1,35 @@
 {
-  "ServerPort": "8080",
-  "StaticFilesDir": "./static",
-  "AllowedOrigins": [
-    "http://localhost:8080",
-    "http://bledom.home.local"
-  ],
-  "DeviceNames": [
-    "ELK-BLEDOM   ",
-    "ELK-BLEDOM",
-    "BLEDOM"
-  ],
-  "BLEScanTimeout": "30s",
-  "BLEConnectTimeout": "7s",
-  "BLEHeartbeatInterval": "60s",
-  "BLERetryDelay": "5s",
-  "BLECommandRateLimitRate": 25.0,
-  "BLECommandRateLimitBurst": 25,
-
-  "PatternsDir": "patterns",
-  "SchedulesFile": "schedules.json",
-
-  "MQTTEnabled": true,
-  "MQTTBroker": "tcp://192.168.1.10:1883",
-  "MQTTUsername": "",
-  "MQTTPassword": "",
-  "MQTTClientId": "bledom-controller",
-  "MQTTTopicPrefix": "bledom",
-
-  "MQTTHADiscoveryEnabled": true,
-  "MQTTHADiscoveryPrefix": "homeassistant"
+  "server": {
+    "port": "8080",
+    "static_files_dir": "./static",
+    "allowed_origins": [
+      "http://localhost:8080",
+      "http://bledom.home.local"
+    ]
+  },
+  "ble": {
+    "device_names": [
+      "ELK-BLEDOM   ",
+      "ELK-BLEDOM",
+      "BLEDOM"
+    ],
+    "scan_timeout": "30s",
+    "connect_timeout": "3s",
+    "heartbeat_interval": "60s",
+    "retry_delay": "5s",
+    "command_rate_limit": 25.0,
+    "command_rate_burst": 25
+  },
+  "mqtt": {
+    "enabled": true,
+    "broker": "tcp://192.168.1.10:1883",
+    "username": "",
+    "password": "",
+    "client_id": "bledom-controller",
+    "topic_prefix": "bledom",
+    "ha_discovery_enabled": true,
+    "ha_discovery_prefix": "homeassistant"
+  },
+  "patterns_dir": "patterns",
+  "schedules_file": "schedules.json"
 }
