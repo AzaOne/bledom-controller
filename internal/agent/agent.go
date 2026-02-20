@@ -66,11 +66,15 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 
 	a.luaEngine = lua.NewEngine(a.bleController, cfg.PatternsDir, a.eventBus)
 
+	// Create Scheduler (before server so we can pass it in)
+	a.scheduler = scheduler.NewScheduler(a.commandChannel, cfg.SchedulesFile)
+
 	// Create Server
 	a.server = server.NewServer(
 		a.luaEngine,
 		a.eventBus,
 		a.state,
+		a.scheduler,
 		a.commandChannel,
 		cfg.Server.Port,
 		cfg.Server.StaticFilesDir,
@@ -79,9 +83,6 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 
 	// Create MQTT Client (optional)
 	a.mqttClient = mqtt.NewClient(cfg, a.eventBus, a.state, a.commandChannel)
-
-	// Create Scheduler
-	a.scheduler = scheduler.NewScheduler(a.commandChannel, cfg.SchedulesFile)
 
 	return a, nil
 }

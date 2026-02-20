@@ -1,6 +1,6 @@
 // static/js/main.js
 
-import { ui, initCodeMirror, initColorPicker, setStatus, renderHardwarePatterns, populateTimePickers, updatePatternLists, updateScheduleList, initDarkMode } from './ui.js';
+import { ui, initCodeMirror, initColorPicker, setStatus, renderHardwarePatterns, populateTimePickers, populateCronTimePickers, updatePatternLists, updateScheduleList, initDarkMode } from './ui.js';
 import { deviceAPI, setSocket } from './api.js';
 import { initEventListeners } from './event-listeners.js';
 
@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initEventListeners();
     renderHardwarePatterns(deviceAPI.setHardwarePattern);
     populateTimePickers();
+    populateCronTimePickers();
     initDarkMode();
 
     function connect() {
@@ -70,12 +71,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // 4. Update Power Buttons Visuals (Optional)
-                     if (state.isOn) {
-                         ui.powerOnBtn.style.border = "2px solid #fff";
-                         ui.powerOffBtn.style.border = "none";
+                    if (state.isOn) {
+                        ui.powerOnBtn.style.border = "2px solid #fff";
+                        ui.powerOffBtn.style.border = "none";
                     } else {
-                         ui.powerOnBtn.style.border = "none";
-                         ui.powerOffBtn.style.border = "2px solid #fff";
+                        ui.powerOnBtn.style.border = "none";
+                        ui.powerOffBtn.style.border = "2px solid #fff";
                     }
                     break;
                 // ----------------------------------------
@@ -91,12 +92,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     ui.brightnessValue.textContent = `${bVal}%`;
                     break;
                 case 'power_update':
-                     if (msg.payload.isOn) {
-                         ui.powerOnBtn.style.border = "2px solid #fff";
-                         ui.powerOffBtn.style.border = "none";
+                    if (msg.payload.isOn) {
+                        ui.powerOnBtn.style.border = "2px solid #fff";
+                        ui.powerOffBtn.style.border = "none";
                     } else {
-                         ui.powerOnBtn.style.border = "none";
-                         ui.powerOffBtn.style.border = "2px solid #fff";
+                        ui.powerOnBtn.style.border = "none";
+                        ui.powerOffBtn.style.border = "2px solid #fff";
                     }
                     break;
 

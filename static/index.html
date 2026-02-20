@@ -115,15 +115,63 @@
 
             <div class="control-section">
                 <h3>Scheduler (Agent)</h3>
-                <label>Schedule (Cron Spec):</label>
-                <input type="text" id="scheduleSpec" placeholder="* * * * *">
-                <label>Command:</label>
-                <input type="text" id="scheduleCommand"
-                    placeholder="power off / pattern sunrise.lua / lua set_color(255,0,0)">
-                <button id="addScheduleBtn">Add Schedule</button>
+
+                <!-- Mode Tabs -->
+                <div class="cron-mode-tabs">
+                    <button class="cron-tab active" id="cronTabSimple" data-mode="simple">Simple</button>
+                    <button class="cron-tab" id="cronTabAdvanced" data-mode="advanced">Advanced</button>
+                </div>
+
+                <!-- Simple Mode -->
+                <div id="cronSimpleMode">
+                    <h4>Time</h4>
+                    <div class="cron-time-row">
+                        <select id="cronHour"></select>
+                        <span class="cron-sep">:</span>
+                        <select id="cronMinute"></select>
+                    </div>
+
+                    <h4>Days</h4>
+                    <div class="weekday-selector cron-days-row">
+                        <label><input type="checkbox" name="cronDay" value="0"><span>Mon</span></label>
+                        <label><input type="checkbox" name="cronDay" value="1"><span>Tue</span></label>
+                        <label><input type="checkbox" name="cronDay" value="2"><span>Wed</span></label>
+                        <label><input type="checkbox" name="cronDay" value="3"><span>Thu</span></label>
+                        <label><input type="checkbox" name="cronDay" value="4"><span>Fri</span></label>
+                        <label><input type="checkbox" name="cronDay" value="5"><span>Sat</span></label>
+                        <label><input type="checkbox" name="cronDay" value="6"><span>Sun</span></label>
+                        <label id="cronEveryDayLabel"><input type="checkbox" id="cronEveryDay"><span>Every Day</span></label>
+                    </div>
+
+                    <h4>Command</h4>
+                    <select id="cronCommandType">
+                        <option value="power on">Power ON</option>
+                        <option value="power off">Power OFF</option>
+                        <option value="pattern">Run Pattern…</option>
+                    </select>
+                    <select id="cronPatternSelect" style="display:none; margin-top:6px;"></select>
+                </div>
+
+                <!-- Advanced Mode -->
+                <div id="cronAdvancedMode" style="display:none;">
+                    <label>Cron Spec:</label>
+                    <input type="text" id="scheduleSpec" placeholder="* * * * *">
+                    <label>Command:</label>
+                    <input type="text" id="scheduleCommand"
+                        placeholder="power off / pattern sunrise.lua">
+                    <div style="font-size: 0.8em; color: #888; margin-top: -6px; margin-bottom: 10px;">
+                        <a href="https://crontab.guru/" target="_blank" rel="noopener">crontab.guru</a> — MINUTE HOUR DOM MONTH DOW
+                    </div>
+                </div>
+
+                <button id="addScheduleBtn" style="width: 100%; margin-top: 10px; background: var(--accent-color);">
+                    <span class="material-icons" style="vertical-align: middle; font-size: 18px;">add_alarm</span>
+                    Add Schedule
+                </button>
+
                 <h4>Current Schedules</h4>
                 <ul id="scheduleList">
-                    <li>No schedules defined.</li>
+                    <li class="schedule-empty">No schedules defined.</li>
                 </ul>
             </div>
 

@@ -48,6 +48,17 @@ export const ui = {
     scheduleSpec: document.getElementById('scheduleSpec'),
     scheduleCommand: document.getElementById('scheduleCommand'),
 
+    // Cron builder
+    cronTabSimple: document.getElementById('cronTabSimple'),
+    cronTabAdvanced: document.getElementById('cronTabAdvanced'),
+    cronSimpleMode: document.getElementById('cronSimpleMode'),
+    cronAdvancedMode: document.getElementById('cronAdvancedMode'),
+    cronHour: document.getElementById('cronHour'),
+    cronMinute: document.getElementById('cronMinute'),
+    cronEveryDay: document.getElementById('cronEveryDay'),
+    cronCommandType: document.getElementById('cronCommandType'),
+    cronPatternSelect: document.getElementById('cronPatternSelect'),
+
     // CodeMirror instance will be stored here
     codeEditor: null,
 };
@@ -125,6 +136,22 @@ export function renderHardwarePatterns(setHardwarePatternApi) {
 }
 
 /**
+ * Populates the cronHour and cronMinute selects for the simple cron builder.
+ */
+export function populateCronTimePickers() {
+    for (let i = 0; i < 24; i++) {
+        ui.cronHour.add(new Option(pad(i), i));
+    }
+    for (let i = 0; i < 60; i += 5) {
+        ui.cronMinute.add(new Option(pad(i), i));
+    }
+    // Add a default "00" if not already there (first option)
+    // The loop already includes 00. Just set a sensible default.
+    ui.cronHour.value = 22;
+    ui.cronMinute.value = 0;
+}
+
+/**
  * Populates the hour, minute, and second dropdowns for scheduling.
  */
 export function populateTimePickers() {
@@ -136,7 +163,7 @@ export function populateTimePickers() {
 }
 
 /**
- * Updates the Lua pattern selection dropdowns.
+ * Updates the Lua pattern selection dropdowns AND the cron builder pattern select.
  * @param {string[]} patterns An array of pattern filenames.
  */
 export function updatePatternLists(patterns) {
@@ -146,38 +173,45 @@ export function updatePatternLists(patterns) {
         if (patterns && patterns.length > 0) {
             patterns.forEach(name => selectElem.add(new Option(name, name)));
             if (patterns.includes(currentVal)) selectElem.value = currentVal;
-            else if (patterns.length > 0) selectElem.value = patterns[0]; // Select first if current not found
+            else if (patterns.length > 0) selectElem.value = patterns[0];
         } else {
             selectElem.innerHTML = '<option disabled>No patterns found</option>';
         }
     };
     createOptions(ui.patternSelector);
     createOptions(ui.editorPatternSelector);
+    if (ui.cronPatternSelect) createOptions(ui.cronPatternSelect);
 }
 
 /**
- * Updates the list of agent-side schedules.
+ * Updates the list of agent-side schedules with styled card rendering.
  * @param {Object} schedules An object mapping schedule IDs to schedule entries.
  * @param {Function} removeScheduleApi A function to call when a remove button is clicked.
  */
 export function updateScheduleList(schedules, removeScheduleApi) {
     ui.scheduleList.innerHTML = '';
-    if (schedules && Object.keys(schedules).length > 0) {
-        for (const id in schedules) {
+    const ids = schedules ? Object.keys(schedules) : [];
+    if (ids.length > 0) {
+        ids.forEach(id => {
             const item = schedules[id];
             const li = document.createElement('li');
-            li.innerHTML = `<span><code>${item.spec}</code> &rarr; <code>${item.command}</code></span>
-                          <button class="remove-schedule-btn" data-id="${id}" style="background-color:var(--warn-color); padding: 5px 10px; font-size: 0.8em;">Remove</button>`;
+            li.className = 'schedule-item';
+            li.innerHTML = `
+                <span class="schedule-spec">${item.spec}</span>
+                <span class="schedule-command">${item.command}</span>
+                <button class="remove-schedule-btn" data-id="${id}" title="Remove schedule">
+                    <span class="material-icons" style="font-size:16px; vertical-align:middle;">delete</span>
+                </button>`;
             ui.scheduleList.appendChild(li);
-        }
+        });
     } else {
-        ui.scheduleList.innerHTML = '<li>No schedules defined.</li>';
+        ui.scheduleList.innerHTML = '<li class="schedule-empty">No schedules defined.</li>';
     }
-    // Re-attach listeners for dynamically added buttons
+    // Re-attach listeners for dynamically added remove buttons
     ui.scheduleList.querySelectorAll('.remove-schedule-btn').forEach(button => {
         button.onclick = (e) => {
-            const id = e.target.dataset.id;
-            if (confirm(`Are you sure you want to remove this schedule?`)) removeScheduleApi(id);
+            const id = e.currentTarget.dataset.id;
+            if (confirm('Remove this schedule?')) removeScheduleApi(id);
         };
     });
 }

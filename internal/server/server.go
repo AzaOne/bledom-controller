@@ -10,6 +10,7 @@ import (
 
 	"bledom-controller/internal/core"
 	"bledom-controller/internal/lua"
+	"bledom-controller/internal/scheduler"
 
 	"github.com/gorilla/websocket"
 )
@@ -34,6 +35,7 @@ type Server struct {
 	eventBus       *core.EventBus
 	commandChannel core.CommandChannel
 	state          *core.State
+	scheduler      *scheduler.Scheduler
 
 	staticFilesDir string
 	allowedOrigins []string
@@ -41,7 +43,7 @@ type Server struct {
 }
 
 // NewServer creates a new server instance.
-func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, cmdChan core.CommandChannel, port string, staticFilesDir string, allowedOrigins []string) *Server {
+func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *scheduler.Scheduler, cmdChan core.CommandChannel, port string, staticFilesDir string, allowedOrigins []string) *Server {
 	hub := NewHub()
 	go hub.Run()
 
@@ -51,6 +53,7 @@ func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, cmdChan
 		luaEngine:      luaEngine,
 		eventBus:       eb,
 		state:          st,
+		scheduler:      sched,
 		commandChannel: cmdChan,
 
 		staticFilesDir: staticFilesDir,
@@ -163,6 +166,11 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	patterns, err := s.luaEngine.GetPatternList()
 	if err == nil {
 		_ = conn.WriteJSON(NewMessage("pattern_list", patterns))
+	}
+
+	// Send current schedule list
+	if s.scheduler != nil {
+		_ = conn.WriteJSON(NewMessage("schedule_list", s.scheduler.GetAll()))
 	}
 
 	s.Hub.register <- conn

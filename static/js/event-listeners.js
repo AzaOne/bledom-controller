@@ -1,8 +1,6 @@
-// static/js/event-listeners.js
-
 import { ui, renderPresets } from './ui.js';
 import { deviceAPI } from './api.js';
-import { debounce, normalizeHex } from './utils.js';
+import { debounce, normalizeHex, pad } from './utils.js';
 import { DEFAULT_PRESETS } from './constants.js';
 
 /**
@@ -152,11 +150,77 @@ export function initEventListeners() {
         }
     });
     ui.addScheduleBtn.addEventListener('click', () => {
-        const spec = ui.scheduleSpec.value.trim();
-        const command = ui.scheduleCommand.value.trim();
-        if (spec && command) deviceAPI.addSchedule(spec, command);
-        else alert('Please provide both a cron spec and a command.');
+        const isSimple = ui.cronSimpleMode && ui.cronSimpleMode.style.display !== 'none';
+        if (isSimple) {
+            // Build cron spec from simple picker
+            const hour = parseInt(ui.cronHour.value);
+            const minute = parseInt(ui.cronMinute.value);
+            const everyDay = ui.cronEveryDay && ui.cronEveryDay.checked;
+            const checkedDays = [...document.querySelectorAll('input[name="cronDay"]:checked')]
+                .map(cb => parseInt(cb.value));
+
+            if (!everyDay && checkedDays.length === 0) {
+                alert('Please select at least one day, or check "Every Day".');
+                return;
+            }
+
+            const dowPart = everyDay ? '*' : checkedDays.map(d => d === 0 ? '1' : d === 1 ? '2' : d === 2 ? '3' : d === 3 ? '4' : d === 4 ? '5' : d === 5 ? '6' : '0').join(',');
+            const spec = `${minute} ${hour} * * ${dowPart}`;
+
+            let command = ui.cronCommandType.value;
+            if (command === 'pattern') {
+                const patternName = ui.cronPatternSelect.value;
+                if (!patternName) { alert('Please select a pattern.'); return; }
+                command = `pattern ${patternName}`;
+            }
+
+            deviceAPI.addSchedule(spec, command);
+        } else {
+            // Advanced mode: raw inputs
+            const spec = ui.scheduleSpec.value.trim();
+            const command = ui.scheduleCommand.value.trim();
+            if (spec && command) deviceAPI.addSchedule(spec, command);
+            else alert('Please provide both a cron spec and a command.');
+        }
     });
+
+    // 9b. Cron Builder: Tab switching
+    if (ui.cronTabSimple && ui.cronTabAdvanced) {
+        [ui.cronTabSimple, ui.cronTabAdvanced].forEach(tab => {
+            tab.addEventListener('click', () => {
+                const mode = tab.dataset.mode;
+                ui.cronTabSimple.classList.toggle('active', mode === 'simple');
+                ui.cronTabAdvanced.classList.toggle('active', mode === 'advanced');
+                ui.cronSimpleMode.style.display = mode === 'simple' ? '' : 'none';
+                ui.cronAdvancedMode.style.display = mode === 'advanced' ? '' : 'none';
+            });
+        });
+    }
+
+    // 9c. Cron Builder: "Every Day" toggle syncs individual day checkboxes
+    if (ui.cronEveryDay) {
+        ui.cronEveryDay.addEventListener('change', () => {
+            const checked = ui.cronEveryDay.checked;
+            document.querySelectorAll('input[name="cronDay"]').forEach(cb => {
+                cb.checked = false;
+                cb.disabled = checked;
+            });
+        });
+    }
+    document.querySelectorAll('input[name="cronDay"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+            if (ui.cronEveryDay && cb.checked) ui.cronEveryDay.checked = false;
+        });
+    });
+
+    // 9d. Cron Builder: show/hide pattern selector based on command type
+    if (ui.cronCommandType) {
+        ui.cronCommandType.addEventListener('change', () => {
+            ui.cronPatternSelect.style.display =
+                ui.cronCommandType.value === 'pattern' ? '' : 'none';
+        });
+    }
+
     ui.darkModeToggle.addEventListener('click', () => {
         document.body.classList.toggle('dark-mode');
         const isDark = document.body.classList.contains('dark-mode');

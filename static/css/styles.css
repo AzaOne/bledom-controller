@@ -271,3 +271,90 @@
     .pattern-anim-strobe-w { background-color: white; animation: strobe 0.5s infinite ease-in-out; }
     .pattern-anim-strobe-7 { animation: fade7 1s infinite steps(1, end), strobe 1s infinite ease-in-out; }
     .pattern-anim-chase { background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet, red); background-size: 800% 100%; animation: rainbow-chase 6s linear infinite; }
+
+    /* ---- Cron Builder ---- */
+    .cron-mode-tabs {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 16px;
+        border-bottom: 2px solid var(--border-light);
+        padding-bottom: 0;
+        transition: border-color 0.3s;
+    }
+    .cron-tab {
+        background: transparent;
+        color: #888;
+        border: none;
+        border-bottom: 3px solid transparent;
+        border-radius: 0;
+        padding: 8px 16px;
+        margin: 0;
+        font-size: 0.95em;
+        font-weight: 500;
+        cursor: pointer;
+        transition: color 0.2s, border-color 0.2s;
+    }
+    .cron-tab:hover { opacity: 1; color: var(--primary-color); }
+    .cron-tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+
+    .cron-time-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+    .cron-time-row select { flex: 1; width: auto; }
+    .cron-sep { font-weight: bold; font-size: 1.4em; color: #888; }
+
+    .cron-days-row { margin-bottom: 14px; }
+
+    /* ---- Schedule List Items ---- */
+    .schedule-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 8px;
+        border-radius: 6px;
+        background: var(--bg-light);
+        border: 1px solid var(--border-light);
+        margin-bottom: 6px;
+        transition: background 0.3s, border-color 0.3s;
+    }
+    .schedule-item:last-child { margin-bottom: 0; }
+    .schedule-spec {
+        background: var(--primary-color);
+        color: #fff;
+        border-radius: 4px;
+        padding: 3px 8px;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.82em;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .schedule-command {
+        flex-grow: 1;
+        font-size: 0.9em;
+        word-break: break-word;
+    }
+    .schedule-empty {
+        color: #888;
+        font-style: italic;
+        list-style: none;
+        padding: 8px 0;
+    }
+    .remove-schedule-btn {
+        background-color: var(--warn-color);
+        padding: 5px 10px;
+        font-size: 0.8em;
+        flex-shrink: 0;
+        margin: 0;
+    }
+
+    /* Dark mode additions for cron builder */
+    .dark-mode .cron-mode-tabs { border-bottom-color: var(--border-dark); }
+    .dark-mode .cron-tab { color: #aaa; }
+    .dark-mode .cron-tab.active { color: var(--primary-color); }
+    .dark-mode .schedule-item { background: #2a2a2a; border-color: var(--border-dark); }
+    .dark-mode .schedule-empty { color: #888; }
+    .dark-mode .cron-sep { color: #888; }
+
