@@ -1,8 +1,7 @@
 ---
 services:
   bledom-controller:
-    build: .
-    image: localhost/bledom-controller
+    image: ghcr.io/azaone/bledom-controller:latest
     container_name: bledom-controller
     privileged: true
     restart: unless-stopped

@@ -29,7 +29,12 @@ The easiest way to run the BLEDOM Controller is with Docker and Docker Compose.
 
 ### Installation
 
-1.  **Clone the repository:**
+1.  **Clone the repository (or just use the image):**
+    If you want to run the controller without building it yourself, you can use the official Docker image from GitHub Container Registry:
+    ```sh
+    docker pull ghcr.io/azaone/bledom-controller:latest
+    ```
+    Alternatively, clone the repository to use the provided `compose.yml`:
     ```sh
     git clone https://github.com/AzaOne/bledom-controller.git
     cd bledom-controller
@@ -45,9 +50,9 @@ The easiest way to run the BLEDOM Controller is with Docker and Docker Compose.
     ```sh
     cp compose.example.yml compose.yml
     ```
-    Then, build the Docker image and start the controller in the background:
+    Then, start the controller in the background. Docker will automatically pull the image from GHCR if it's not present locally:
     ```sh
-    docker compose up --build -d
+    docker compose up -d
     ```
 
 4.  **Access the Web UI:**
@@ -126,7 +131,7 @@ If you prefer to run the agent without Docker:
     ```
 
 3.  **Run the agent:**
-    Ensure the `static/` and `patterns/` directories are in the same location as the binary.
+    Ensure the `web/` and `patterns/` directories are in the same location as the binary.
     ```sh
     ./build/bledom-controller-linux-amd64
     ```
@@ -141,7 +146,7 @@ If you prefer to run the agent without Docker:
 - `internal/mqtt`: Handles MQTT connections, HA Auto-Discovery, and message mapping.
 - `internal/server`: The WebSocket and HTTP server.
 - `internal/scheduler`: The cron-based job scheduler.
-- `static/`: Contains the frontend HTML, CSS, and JavaScript.
+- `web/`: Contains the frontend HTML, CSS, and JavaScript.
 - `patterns/`: Default location for user-created Lua patterns.
 - `Dockerfile`: Defines the container for production deployment.
 - `compose.yml`: Easy-to-use Docker Compose file for deployment.
