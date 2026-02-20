@@ -10,6 +10,7 @@ An advanced web-based controller for "BLEDOM" Bluetooth Low Energy (BLE) LED lig
 - **Lua Scripting Engine:** Write and save your own custom color patterns and animations directly in the UI.
 - **High-Level Effects API:** Simple Lua functions like `breathe()`, `strobe()`, and `fade()` for creating complex animations with one line of code.
 - **Live Pattern Editor:** A full-featured code editor (CodeMirror) is built into the web UI for creating, editing, and deleting Lua patterns.
+- **MQTT & Home Assistant:** Full MQTT integration with Home Assistant Auto-Discovery. Control power, color, brightness, and trigger Lua patterns via MQTT. Status changes are broadcasted in real-time via MQTT and WebSockets.
 - **Agent-Side Scheduling:** Use standard cron syntax to schedule commands (e.g., `power on`, `run pattern sunrise.lua`). Schedules are saved and persist across restarts.
 - **On-Device Scheduling:** Sync the device's time and set its internal on/off schedule.
 - **Dockerized & Cross-Platform:** Easy deployment using Docker and Docker Compose. Build scripts are included for native cross-platform binaries (Linux AMD64/ARM64).
@@ -34,6 +35,7 @@ The easiest way to run the BLEDOM Controller is with Docker and Docker Compose.
     ```
 
 2.  **Review Configuration (Optional):**
+    - Edit `config.json` to configure your MQTT broker settings and Home Assistant discovery (enabled by default).
     - The `patterns/` directory contains your Lua scripts. You can add your own `.lua` files here before starting.
     - `schedules.json` stores your cron schedules. You can pre-configure it or manage schedules through the UI.
 
@@ -69,6 +71,13 @@ The scheduler uses standard cron syntax to automate tasks.
     - `power on` / `power off`: Turns the lights on or off.
     - `pattern [filename.lua]`: Runs a specific Lua pattern file. Example: `pattern sunrise.lua`.
     - `lua [lua_code]`: Executes a single line of Lua code. Example: `lua set_color(255, 100, 0)`.
+
+### MQTT & Home Assistant Integration
+The controller fully supports MQTT for both command and state updates. 
+
+- **Auto-Discovery:** By default, Home Assistant Auto-Discovery is enabled in `config.json`. Once connected, the BLEDOM strip will appear in Home Assistant as an RGB light, complete with effect support (Lua patterns).
+- **State & Control:** You can manually publish JSON payloads to control the device using your configured `topic_prefix` (e.g., `bledom/light/bledom-controller/set`).
+- **WebSockets:** All state changes—whether triggered by MQTT, the UI, or Lua scripts—are instantly broadcasted to all connected WebSockets and published back to the MQTT state topic.
 
 ## Lua API Reference
 
