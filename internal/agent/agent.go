@@ -82,7 +82,7 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 	)
 
 	// Create MQTT Client (optional)
-	a.mqttClient = mqtt.NewClient(cfg, a.eventBus, a.state, a.commandChannel)
+	a.mqttClient = mqtt.NewClient(cfg, a.eventBus, a.state, a.commandChannel, a.luaEngine.GetPatternList)
 
 	return a, nil
 }

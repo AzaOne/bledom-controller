@@ -19,13 +19,14 @@ type Client struct {
 	cfg    *config.Config
 	prefix string
 
-	eventBus       *core.EventBus
-	commandChannel core.CommandChannel
-	state          *core.State
+	eventBus        *core.EventBus
+	commandChannel  core.CommandChannel
+	state           *core.State
+	patternListFunc func() ([]string, error)
 }
 
 // NewClient створює клієнта з покращеною логікою реконекту.
-func NewClient(cfg *config.Config, eb *core.EventBus, st *core.State, cmdChan core.CommandChannel) *Client {
+func NewClient(cfg *config.Config, eb *core.EventBus, st *core.State, cmdChan core.CommandChannel, patternListFunc func() ([]string, error)) *Client {
 	if !cfg.MQTT.Enabled {
 		return nil
 	}
@@ -62,11 +63,12 @@ func NewClient(cfg *config.Config, eb *core.EventBus, st *core.State, cmdChan co
 	opts.SetWill(prefix+"/availability", "offline", 1, true)
 
 	c := &Client{
-		cfg:            cfg,
-		prefix:         prefix,
-		eventBus:       eb,
-		state:          st,
-		commandChannel: cmdChan,
+		cfg:             cfg,
+		prefix:          prefix,
+		eventBus:        eb,
+		state:           st,
+		commandChannel:  cmdChan,
+		patternListFunc: patternListFunc,
 	}
 
 	opts.SetOnConnectHandler(c.onConnect)
@@ -279,9 +281,13 @@ func (c *Client) PublishHADiscovery() {
 	time.Sleep(1 * time.Second)
 
 	patterns := []string{}
-	// Note: HA Discovery requires a pattern list, ideally the LuaEngine should not be needed here directly now,
-	// but since we dropped the direct dependency we assume pattern list can be fetched locally if needed,
-	// or we can pass it down. Currently we skip getting it or leave empty unless injected.
+	if c.patternListFunc != nil {
+		if list, err := c.patternListFunc(); err == nil {
+			patterns = list
+		} else {
+			log.Printf("[MQTT] Could not get pattern list for HA Discovery: %v", err)
+		}
+	}
 
 	safeID := strings.ReplaceAll(c.cfg.MQTT.ClientID, " ", "_")
 	// Санітизація ID
