@@ -223,7 +223,7 @@ func (e *Engine) execute(name string, executor func(*lua.LState) error, ctx cont
 		e.eventBus.Publish(core.Event{
 			Type: core.PatternChangedEvent,
 			Payload: map[string]interface{}{
-				"pattern": name,
+				"running": name,
 			},
 		})
 	}
@@ -234,7 +234,7 @@ func (e *Engine) execute(name string, executor func(*lua.LState) error, ctx cont
 			e.eventBus.Publish(core.Event{
 				Type: core.PatternChangedEvent,
 				Payload: map[string]interface{}{
-					"pattern": "",
+					"running": "",
 				},
 			})
 		}

@@ -144,7 +144,7 @@ func (c *Client) listenEvents() {
 
 		case core.PatternChangedEvent:
 			if payload, ok := event.Payload.(map[string]interface{}); ok {
-				if pattern, ok := payload["pattern"].(string); ok {
+				if pattern, ok := payload["running"].(string); ok {
 					state := pattern
 					if state == "" {
 						state = "IDLE"
