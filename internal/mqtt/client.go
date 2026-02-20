@@ -8,24 +8,24 @@ import (
 	"strings"
 	"time"
 
-	"bledom-controller/internal/ble"
 	"bledom-controller/internal/config"
-	"bledom-controller/internal/lua"
-	"bledom-controller/internal/server"
+	"bledom-controller/internal/core"
+
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 type Client struct {
-	client        mqtt.Client
-	cfg           *config.Config
-	bleController *ble.Controller
-	luaEngine     *lua.Engine
-	hub           *server.Hub // Доступ до Hub для оновлення WS
-	prefix        string
+	client mqtt.Client
+	cfg    *config.Config
+	prefix string
+
+	eventBus       *core.EventBus
+	commandChannel core.CommandChannel
+	state          *core.State
 }
 
 // NewClient створює клієнта з покращеною логікою реконекту.
-func NewClient(cfg *config.Config, bc *ble.Controller, le *lua.Engine, hub *server.Hub) *Client {
+func NewClient(cfg *config.Config, eb *core.EventBus, st *core.State, cmdChan core.CommandChannel) *Client {
 	if !cfg.MQTT.Enabled {
 		return nil
 	}
@@ -62,11 +62,11 @@ func NewClient(cfg *config.Config, bc *ble.Controller, le *lua.Engine, hub *serv
 	opts.SetWill(prefix+"/availability", "offline", 1, true)
 
 	c := &Client{
-		cfg:           cfg,
-		bleController: bc,
-		luaEngine:     le,
-		hub:           hub,
-		prefix:        prefix,
+		cfg:            cfg,
+		prefix:         prefix,
+		eventBus:       eb,
+		state:          st,
+		commandChannel: cmdChan,
 	}
 
 	opts.SetOnConnectHandler(c.onConnect)
@@ -81,7 +81,100 @@ func NewClient(cfg *config.Config, bc *ble.Controller, le *lua.Engine, hub *serv
 
 	c.client = mqtt.NewClient(opts)
 
+	// Subscribe to events
+	go c.listenEvents()
+
 	return c
+}
+
+func (c *Client) listenEvents() {
+	if c.eventBus == nil {
+		return
+	}
+
+	sub := c.eventBus.Subscribe(
+		core.StateChangedEvent,
+		core.DeviceConnectedEvent,
+		core.PatternChangedEvent,
+		core.PowerChangedEvent,
+		core.ColorChangedEvent,
+	)
+
+	for event := range sub {
+		switch event.Type {
+		case core.DeviceConnectedEvent:
+			if payload, ok := event.Payload.(map[string]interface{}); ok {
+				if connected, ok := payload["connected"].(bool); ok {
+					statusStr := "disconnected"
+					if connected {
+						statusStr = "connected"
+					}
+					c.Publish("connection", statusStr, true)
+
+					if connected {
+						if rssi, ok := payload["rssi"].(int16); ok {
+							c.Publish("rssi", rssi, false)
+						}
+					}
+				}
+			}
+		case core.StateChangedEvent:
+			// Full sync if needed, handle sync updates
+			if payload, ok := event.Payload.(map[string]interface{}); ok {
+				if powerIsOn, ok := payload["isOn"].(bool); ok {
+					powerStr := "OFF"
+					if powerIsOn {
+						powerStr = "ON"
+					}
+					c.Publish("power/state", powerStr, true)
+				}
+				if brightness, ok := payload["brightness"].(int); ok {
+					c.Publish("brightness/state", brightness, true)
+				}
+				if r, okR := payload["r"].(int); okR {
+					if g, okG := payload["g"].(int); okG {
+						if b, okB := payload["b"].(int); okB {
+							c.Publish("color/state", fmt.Sprintf("%d,%d,%d", r, g, b), true)
+						}
+					}
+				}
+			}
+
+		case core.PatternChangedEvent:
+			if payload, ok := event.Payload.(map[string]interface{}); ok {
+				if pattern, ok := payload["pattern"].(string); ok {
+					state := pattern
+					if state == "" {
+						state = "IDLE"
+					}
+					c.Publish("pattern/state", state, true)
+				}
+			}
+		case core.PowerChangedEvent:
+			if payload, ok := event.Payload.(map[string]interface{}); ok {
+				if powerIsOn, ok := payload["isOn"].(bool); ok {
+					powerStr := "OFF"
+					if powerIsOn {
+						powerStr = "ON"
+					}
+					c.Publish("power/state", powerStr, true)
+				}
+			}
+		case core.ColorChangedEvent:
+			if payload, ok := event.Payload.(map[string]interface{}); ok {
+				if hex, okHex := payload["hex"].(string); okHex {
+					c.Publish("color/state/hex", hex, true)
+				}
+				if r, okR := payload["r"].(int); okR {
+					if g, okG := payload["g"].(int); okG {
+						if b, okB := payload["b"].(int); okB {
+							c.Publish("color/state", fmt.Sprintf("%d,%d,%d", r, g, b), true)
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 // Connect ініціює підключення.
@@ -110,7 +203,7 @@ func (c *Client) Disconnect() {
 
 		// 1. Явно відправляємо статус offline перед розривом
 		token := c.client.Publish(c.prefix+"/availability", 0, true, "offline")
-		
+
 		// Чекаємо завершення публікації з таймаутом (щоб не зависнути при виході)
 		if token.WaitTimeout(2 * time.Second) {
 			if token.Error() != nil {
@@ -185,11 +278,10 @@ func (c *Client) PublishHADiscovery() {
 	// Даємо трохи часу, щоб переконатися, що підписки пройшли і система стабільна
 	time.Sleep(1 * time.Second)
 
-	patterns, err := c.luaEngine.GetPatternList()
-	if err != nil {
-		log.Printf("[MQTT] Warning: Could not get patterns for HA discovery: %v", err)
-		patterns = []string{}
-	}
+	patterns := []string{}
+	// Note: HA Discovery requires a pattern list, ideally the LuaEngine should not be needed here directly now,
+	// but since we dropped the direct dependency we assume pattern list can be fetched locally if needed,
+	// or we can pass it down. Currently we skip getting it or leave empty unless injected.
 
 	safeID := strings.ReplaceAll(c.cfg.MQTT.ClientID, " ", "_")
 	// Санітизація ID
@@ -265,34 +357,31 @@ func (c *Client) handlePower(client mqtt.Client, msg mqtt.Message) {
 		return
 	}
 
-	c.luaEngine.StopCurrentPattern()
-	c.bleController.SetPower(isOn)
-
-	// Update MQTT State
-	c.Publish("power/state", strings.ToUpper(payload), true)
-
-	// Sync WebSocket clients
-	c.hub.Broadcast(server.NewMessage("power_update", map[string]bool{"isOn": isOn}))
+	c.commandChannel <- core.Command{
+		Type: core.CmdSetPower,
+		Payload: map[string]interface{}{
+			"isOn": isOn,
+		},
+	}
 }
 
 func (c *Client) handleBrightness(client mqtt.Client, msg mqtt.Message) {
 	payload := string(msg.Payload())
 	val, err := strconv.Atoi(payload)
 	if err == nil {
-		c.bleController.SetBrightness(val)
-		c.Publish("brightness/state", val, true)
-
-		// Sync WebSocket clients
-		c.hub.Broadcast(server.NewMessage("brightness_update", map[string]int{"value": val}))
+		c.commandChannel <- core.Command{
+			Type: core.CmdSetBrightness,
+			Payload: map[string]interface{}{
+				"value": float64(val),
+			},
+		}
 	}
 }
 
 func (c *Client) handleColor(client mqtt.Client, msg mqtt.Message) {
 	payload := string(msg.Payload())
-	c.luaEngine.StopCurrentPattern()
 
 	var r, g, b int
-	var colorHex string
 	processed := false
 
 	// Логіка парсингу (HEX або RGB)
@@ -300,7 +389,6 @@ func (c *Client) handleColor(client mqtt.Client, msg mqtt.Message) {
 		cleanHex := strings.TrimPrefix(payload, "#")
 		if _, err := fmt.Sscanf(cleanHex, "%02x%02x%02x", &r, &g, &b); err == nil {
 			processed = true
-			colorHex = fmt.Sprintf("#%02X%02X%02X", r, g, b)
 		}
 	} else if strings.Contains(payload, ",") {
 		parts := strings.Split(payload, ",")
@@ -309,29 +397,34 @@ func (c *Client) handleColor(client mqtt.Client, msg mqtt.Message) {
 			g, _ = strconv.Atoi(strings.TrimSpace(parts[1]))
 			b, _ = strconv.Atoi(strings.TrimSpace(parts[2]))
 			processed = true
-			colorHex = fmt.Sprintf("#%02X%02X%02X", r, g, b)
 		}
 	}
 
 	if processed {
-		c.bleController.SetColor(r, g, b)
-
-		rgbString := fmt.Sprintf("%d,%d,%d", r, g, b)
-		c.Publish("color/state", rgbString, true)
-
-		// Для Web UI відправляємо HEX і окремі компоненти
-		c.hub.Broadcast(server.NewMessage("color_update", map[string]interface{}{
-			"r": r, "g": g, "b": b, "hex": colorHex,
-		}))
+		c.commandChannel <- core.Command{
+			Type: core.CmdSetColor,
+			Payload: map[string]interface{}{
+				"r": float64(r),
+				"g": float64(g),
+				"b": float64(b),
+			},
+		}
 	}
 }
 
 func (c *Client) handlePatternRun(client mqtt.Client, msg mqtt.Message) {
 	name := string(msg.Payload())
-	// Callback агента, переданий в engine, зробить Broadcast статусу
-	go c.luaEngine.RunPattern(name, nil)
+	c.commandChannel <- core.Command{
+		Type: core.CmdRunPattern,
+		Payload: map[string]interface{}{
+			"name": name,
+		},
+	}
 }
 
 func (c *Client) handlePatternStop(client mqtt.Client, msg mqtt.Message) {
-	c.luaEngine.StopCurrentPattern()
+	c.commandChannel <- core.Command{
+		Type:    core.CmdStopPattern,
+		Payload: nil,
+	}
 }

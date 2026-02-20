@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"bledom-controller/internal/core"
+
 	"golang.org/x/time/rate"
 	"tinygo.org/x/bluetooth"
 )
@@ -42,13 +44,15 @@ type Controller struct {
 	bleRetryDelay         time.Duration
 	bleCommandLimiter     *rate.Limiter
 
+	eventBus *core.EventBus
+
 	// --- Збереження стану ---
 	state   State
 	stateMu sync.RWMutex
 }
 
 // NewController creates a new BLE controller.
-func NewController(ctx context.Context, deviceNames []string, scanTimeout, connectTimeout, heartbeatInterval, retryDelay time.Duration, commandRateLimitRate float64, commandRateLimitBurst int) *Controller {
+func NewController(ctx context.Context, eb *core.EventBus, deviceNames []string, scanTimeout, connectTimeout, heartbeatInterval, retryDelay time.Duration, commandRateLimitRate float64, commandRateLimitBurst int) *Controller {
 	serviceUUID, _ := bluetooth.ParseUUID(defaultServiceUUIDStr)
 	characteristicUUID, _ := bluetooth.ParseUUID(defaultCharacteristicUUIDStr)
 
@@ -63,6 +67,7 @@ func NewController(ctx context.Context, deviceNames []string, scanTimeout, conne
 		commandChan:           make(chan []byte, commandRateLimitBurst*2),
 		disconnectChan:        make(chan struct{}, 1),
 		bleCommandLimiter:     rate.NewLimiter(rate.Limit(commandRateLimitRate), commandRateLimitBurst),
+		eventBus:              eb,
 
 		// Початковий стан
 		state: State{
@@ -138,9 +143,22 @@ func contains(s []string, str string) bool {
 	return false
 }
 
+// publishConnection is a helper to publish connection events.
+func (c *Controller) publishConnection(connected bool, rssi int16) {
+	if c.eventBus != nil {
+		c.eventBus.Publish(core.Event{
+			Type: core.DeviceConnectedEvent,
+			Payload: map[string]interface{}{
+				"connected": connected,
+				"rssi":      rssi,
+			},
+		})
+	}
+}
+
 // Run starts the BLE connection management loop.
-func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool, rssi int16)) {
-	onStatusChange(false, 0)
+func (c *Controller) Run(ctx context.Context) {
+	c.publishConnection(false, 0)
 
 	for {
 		select {
@@ -214,7 +232,7 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 			case err := <-connectErrChan:
 				if err != nil {
 					log.Printf("Failed to connect: %v", err)
-					onStatusChange(false, 0)
+					c.publishConnection(false, 0)
 					time.Sleep(c.bleRetryDelay)
 					continue
 				}
@@ -228,7 +246,7 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 			}
 
 			log.Printf("Connected to %s", deviceScanResult.LocalName())
-			onStatusChange(true, deviceScanResult.RSSI)
+			c.publishConnection(true, deviceScanResult.RSSI)
 
 			discoverErrChan := make(chan error, 1)
 			go func() {
@@ -302,7 +320,7 @@ func (c *Controller) Run(ctx context.Context, onStatusChange func(connected bool
 			}
 
 			heartbeatTicker.Stop()
-			onStatusChange(false, 0)
+			c.publishConnection(false, 0)
 
 			c.characteristic = bluetooth.DeviceCharacteristic{}
 			c.heartbeatChar = bluetooth.DeviceCharacteristic{}

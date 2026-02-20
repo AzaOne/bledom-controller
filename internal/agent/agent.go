@@ -4,45 +4,46 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
 	"bledom-controller/internal/ble"
 	"bledom-controller/internal/config"
+	"bledom-controller/internal/core"
 	"bledom-controller/internal/lua"
 	"bledom-controller/internal/mqtt"
 	"bledom-controller/internal/scheduler"
 	"bledom-controller/internal/server"
-	"github.com/robfig/cron/v3"
 )
 
 type Agent struct {
-	ctx           context.Context
-	cancel        context.CancelFunc
+	ctx    context.Context
+	cancel context.CancelFunc
+	config *config.Config
+	wg     sync.WaitGroup
+
+	state          *core.State
+	eventBus       *core.EventBus
+	commandChannel core.CommandChannel
+
 	bleController *ble.Controller
 	luaEngine     *lua.Engine
 	scheduler     *scheduler.Scheduler
 	server        *server.Server
 	mqttClient    *mqtt.Client
-	config        *config.Config
-	wg            sync.WaitGroup
-
-	lastBleStatus  bool
-	lastRsssi      int16
-	statusMutex    sync.RWMutex
-	runningPattern string
-	agentMutex     sync.Mutex
 }
 
 func NewAgent(cfg *config.Config) (*Agent, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	a := &Agent{
-		ctx:           ctx,
-		cancel:        cancel,
-		lastBleStatus: false,
-		lastRsssi:     0,
-		config:        cfg,
+		ctx:            ctx,
+		cancel:         cancel,
+		config:         cfg,
+		state:          core.NewState(),
+		eventBus:       core.NewEventBus(),
+		commandChannel: make(core.CommandChannel, 100),
 	}
 
 	// Налаштування Bluetooth
@@ -53,6 +54,7 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 
 	a.bleController = ble.NewController(
 		ctx,
+		a.eventBus,
 		cfg.BLE.DeviceNames,
 		bleScanTimeout,
 		bleConnectTimeout,
@@ -62,163 +64,35 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 		cfg.BLE.RateBurst,
 	)
 
-	a.luaEngine = lua.NewEngine(a.bleController, cfg.PatternsDir)
+	a.luaEngine = lua.NewEngine(a.bleController, cfg.PatternsDir, a.eventBus)
 
 	// Create Server
 	a.server = server.NewServer(
 		a.luaEngine,
-		a.getLastBleStatus,
-		a.getLastRsssi,
-		a.getSchedules,
-		a.getRunningPattern,
-		a.bleController.GetState,
+		a.eventBus,
+		a.state,
+		a.commandChannel,
 		cfg.Server.Port,
 		cfg.Server.StaticFilesDir,
 		cfg.Server.AllowedOrigins,
 	)
 
-	// Create MQTT Client
-	a.mqttClient = mqtt.NewClient(cfg, a.bleController, a.luaEngine, a.server.Hub)
+	// Create MQTT Client (optional)
+	a.mqttClient = mqtt.NewClient(cfg, a.eventBus, a.state, a.commandChannel)
 
 	// Create Scheduler
-	a.scheduler = scheduler.NewScheduler(a.luaEngine, a.bleController, a.handlePatternStatusChange, cfg.SchedulesFile)
-
-	// Create CommandHandler
-	commandHandler := NewCommandHandler(a.bleController, a.luaEngine, a.scheduler, a.mqttClient, a.handlePatternStatusChange)
-
-	// Connect Handler to Server
-	a.server.SetHandler(commandHandler)
+	a.scheduler = scheduler.NewScheduler(a.commandChannel, cfg.SchedulesFile)
 
 	return a, nil
 }
 
-func (a *Agent) getRunningPattern() string {
-	a.agentMutex.Lock()
-	defer a.agentMutex.Unlock()
-	return a.runningPattern
-}
-
-// handlePatternStatusChange викликається при зміні статусу скрипта.
-func (a *Agent) handlePatternStatusChange(runningPattern string) {
-	a.agentMutex.Lock()
-	a.runningPattern = runningPattern
-	a.agentMutex.Unlock()
-
-	// 1. Broadcast Pattern Name
-	payload := map[string]string{"running": runningPattern}
-	if a.server != nil && a.server.Hub != nil {
-		a.server.Hub.Broadcast(server.NewMessage("pattern_status", payload))
-	}
-
-	// 2. Broadcast MQTT Pattern Name
-	if a.mqttClient != nil {
-		state := runningPattern
-		if state == "" {
-			state = "IDLE"
-		}
-		a.mqttClient.Publish("pattern/state", state, true)
-	}
-
-	// 3. Sync Final State (Якщо патерн завершився)
-	if runningPattern == "" {
-		log.Println("Pattern finished. Syncing final state.")
-		a.syncState()
-	}
-}
-
-// syncState зчитує актуальний стан з BLE контролера і розсилає його в WS і MQTT
-func (a *Agent) syncState() {
-	state := a.bleController.GetState()
-
-	// 1. Sync WebSocket (UI)
-	if a.server != nil && a.server.Hub != nil {
-		hex := fmt.Sprintf("#%02X%02X%02X", state.R, state.G, state.B)
-		a.server.Hub.Broadcast(server.NewMessage("device_state", map[string]interface{}{
-			"isOn":       state.IsOn,
-			"r":          state.R,
-			"g":          state.G,
-			"b":          state.B,
-			"hex":        hex,
-			"brightness": state.Brightness,
-			"speed":      state.Speed,
-		}))
-	}
-
-	// 2. Sync MQTT (Home Assistant)
-	if a.mqttClient != nil {
-		powerPayload := "OFF"
-		if state.IsOn {
-			powerPayload = "ON"
-		}
-		a.mqttClient.Publish("power/state", powerPayload, true)
-
-		a.mqttClient.Publish("brightness/state", state.Brightness, true)
-
-		rgbPayload := fmt.Sprintf("%d,%d,%d", state.R, state.G, state.B)
-		a.mqttClient.Publish("color/state", rgbPayload, true)
-	}
-}
-
-func (a *Agent) getLastBleStatus() bool {
-	a.statusMutex.RLock()
-	defer a.statusMutex.RUnlock()
-	return a.lastBleStatus
-}
-
-func (a *Agent) getLastRsssi() int16 {
-	a.statusMutex.RLock()
-	defer a.statusMutex.RUnlock()
-	return a.lastRsssi
-}
-
-func (a *Agent) getSchedules() map[cron.EntryID]scheduler.ScheduleEntry {
-	return a.scheduler.GetAll()
-}
-
+// Run starts the agent orchestration loop.
 func (a *Agent) Run() {
-	bleStatusCallback := func(connected bool, rssi int16) {
-		wasConnected := a.getLastBleStatus()
-
-		a.statusMutex.Lock()
-		a.lastBleStatus = connected
-		a.lastRsssi = rssi
-		a.statusMutex.Unlock()
-
-		msg := server.NewMessage("ble_status", map[string]interface{}{
-			"connected": connected,
-			"rssi":      rssi,
-		})
-		a.server.Hub.Broadcast(msg)
-
-		if a.mqttClient != nil {
-			statusStr := "disconnected"
-			if connected {
-				statusStr = "connected"
-			}
-			a.mqttClient.Publish("connection", statusStr, true)
-			if connected {
-				a.mqttClient.Publish("rssi", rssi, false)
-			}
-		}
-
-		if !wasConnected && connected {
-			log.Println("Device connected, checking for a pattern to resume.")
-			a.agentMutex.Lock()
-			patternToResume := a.runningPattern
-			a.agentMutex.Unlock()
-
-			if patternToResume != "" {
-				log.Printf("Resuming pattern: %s", patternToResume)
-				go a.luaEngine.RunPattern(patternToResume, a.handlePatternStatusChange)
-			}
-		}
-	}
+	// Hook up event subscriptions to maintain the central state and handle resync logic
+	go a.listenEvents()
 
 	if a.mqttClient != nil {
 		go func() {
-			// Connect() тепер використовує SetConnectRetry=true.
-			// Якщо брокер офлайн, Connect() не поверне помилку відразу, а буде намагатися
-			// підключитися у фоні. Помилка повернеться лише при некоректній конфігурації.
 			if err := a.mqttClient.Connect(); err != nil {
 				log.Printf("[Agent] MQTT Setup Error: %v", err)
 			}
@@ -228,15 +102,281 @@ func (a *Agent) Run() {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
-		a.bleController.Run(a.ctx, bleStatusCallback)
+		a.bleController.Run(a.ctx)
 	}()
 
 	a.scheduler.Start()
 
 	log.Printf("Agent running on http://localhost:%s", a.config.Server.Port)
-	if err := a.server.ListenAndServe(); err != nil {
-		log.Printf("Server error: %v", err)
+	go func() {
+		if err := a.server.ListenAndServe(); err != nil {
+			log.Printf("Server error: %v", err)
+		}
+	}()
+
+	// Orchestrator Central Command Loop
+	log.Println("Agent orchestrator ready.")
+	for {
+		select {
+		case <-a.ctx.Done():
+			log.Println("Agent orchestrator shutting down...")
+			return
+		case cmd := <-a.commandChannel:
+			a.handleCommand(cmd)
+		}
 	}
+}
+
+func (a *Agent) listenEvents() {
+	sub := a.eventBus.Subscribe(core.DeviceConnectedEvent, core.PatternChangedEvent)
+
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case event := <-sub:
+			switch event.Type {
+			case core.DeviceConnectedEvent:
+				// Update State and Resume Pattern if needed
+				if payload, ok := event.Payload.(map[string]interface{}); ok {
+					if connected, ok := payload["connected"].(bool); ok {
+						if rssi, ok := payload["rssi"].(int16); ok {
+							wasConnected := a.state.Clone().IsConnected
+							a.state.SetConnection(connected, rssi)
+
+							if !wasConnected && connected {
+								log.Println("Device connected, checking for a pattern to resume.")
+								patternToResume := a.state.Clone().RunningPattern
+
+								if patternToResume != "" {
+									log.Printf("Resuming pattern: %s", patternToResume)
+									a.luaEngine.RunPattern(patternToResume)
+								}
+							}
+						}
+					}
+				}
+			case core.PatternChangedEvent:
+				if payload, ok := event.Payload.(map[string]interface{}); ok {
+					if pattern, ok := payload["pattern"].(string); ok {
+						a.state.SetRunningPattern(pattern)
+
+						if pattern == "" {
+							log.Println("Pattern finished. Syncing final state.")
+							a.syncState()
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func (a *Agent) handleCommand(cmd core.Command) {
+	switch cmd.Type {
+	case core.CmdSetPower:
+		isOn := false
+		if b, ok := cmd.Payload["isOn"].(bool); ok {
+			isOn = b
+		}
+		a.luaEngine.StopCurrentPattern()
+		a.state.SetPower(isOn)
+		a.bleController.SetPower(isOn)
+		a.eventBus.Publish(core.Event{Type: core.PowerChangedEvent, Payload: map[string]interface{}{"isOn": isOn}})
+
+	case core.CmdSetColor:
+		r := 0
+		g := 0
+		b := 0
+		if vr, ok := cmd.Payload["r"].(float64); ok {
+			r = int(vr)
+		}
+		if vg, ok := cmd.Payload["g"].(float64); ok {
+			g = int(vg)
+		}
+		if vb, ok := cmd.Payload["b"].(float64); ok {
+			b = int(vb)
+		}
+
+		a.luaEngine.StopCurrentPattern()
+		a.state.SetColor(r, g, b)
+		a.bleController.SetColor(r, g, b)
+
+		hex := fmt.Sprintf("#%02X%02X%02X", r, g, b)
+		a.eventBus.Publish(core.Event{
+			Type: core.ColorChangedEvent,
+			Payload: map[string]interface{}{
+				"r": r, "g": g, "b": b, "hex": hex,
+			},
+		})
+
+	case core.CmdSetBrightness:
+		val := 100
+		if v, ok := cmd.Payload["value"].(float64); ok {
+			val = int(v)
+		}
+		a.state.SetBrightness(val)
+		a.bleController.SetBrightness(val)
+		a.eventBus.Publish(core.Event{Type: core.StateChangedEvent, Payload: map[string]interface{}{"brightness": val}}) // Partial state change can be published this way too or just resync all
+
+	case core.CmdSetSpeed:
+		val := 50
+		if v, ok := cmd.Payload["value"].(float64); ok {
+			val = int(v)
+		}
+		a.state.SetSpeed(val)
+		a.bleController.SetSpeed(val)
+		a.eventBus.Publish(core.Event{Type: core.StateChangedEvent, Payload: map[string]interface{}{"speed": val}})
+
+	case core.CmdSetHardwarePattern:
+		id := 0
+		if v, ok := cmd.Payload["id"].(float64); ok {
+			id = int(v)
+		}
+		a.luaEngine.StopCurrentPattern()
+		a.bleController.SetHardwarePattern(id)
+
+	case core.CmdSyncTime:
+		a.bleController.SyncTime()
+
+	case core.CmdSetRgbOrder:
+		v1, v2, v3 := 0, 0, 0
+		if v, ok := cmd.Payload["v1"].(float64); ok {
+			v1 = int(v)
+		}
+		if v, ok := cmd.Payload["v2"].(float64); ok {
+			v2 = int(v)
+		}
+		if v, ok := cmd.Payload["v3"].(float64); ok {
+			v3 = int(v)
+		}
+		a.bleController.SetRgbOrder(v1, v2, v3)
+
+	case core.CmdSetSchedule:
+		hour, minute, second := 0, 0, 0
+		var weekdays byte = 0
+		isOn, isSet := false, false
+		if v, ok := cmd.Payload["hour"].(float64); ok {
+			hour = int(v)
+		}
+		if v, ok := cmd.Payload["minute"].(float64); ok {
+			minute = int(v)
+		}
+		if v, ok := cmd.Payload["second"].(float64); ok {
+			second = int(v)
+		}
+		if v, ok := cmd.Payload["weekdays"].(float64); ok {
+			weekdays = byte(v)
+		}
+		if v, ok := cmd.Payload["isOn"].(bool); ok {
+			isOn = v
+		}
+		if v, ok := cmd.Payload["isSet"].(bool); ok {
+			isSet = v
+		}
+		a.bleController.SetSchedule(hour, minute, second, weekdays, isOn, isSet)
+
+	case core.CmdRunPattern:
+		name := ""
+		if v, ok := cmd.Payload["name"].(string); ok {
+			name = v
+		}
+		a.luaEngine.RunPattern(name)
+
+	case core.CmdStopPattern:
+		a.luaEngine.StopCurrentPattern()
+
+	case core.CmdAddSchedule:
+		spec, command := "", ""
+		if v, ok := cmd.Payload["spec"].(string); ok {
+			spec = v
+		}
+		if v, ok := cmd.Payload["command"].(string); ok {
+			command = v
+		}
+		a.scheduler.Add(spec, command)
+
+		// Send an update event
+		if a.server != nil && a.server.Hub != nil {
+			a.server.Hub.Broadcast(server.NewMessage("schedule_list", a.scheduler.GetAll()))
+		}
+
+	case core.CmdRemoveSchedule:
+		if idStr, ok := cmd.Payload["id"].(string); ok {
+			if id, err := strconv.Atoi(idStr); err == nil {
+				a.scheduler.Remove(id)
+				if a.server != nil && a.server.Hub != nil {
+					a.server.Hub.Broadcast(server.NewMessage("schedule_list", a.scheduler.GetAll()))
+				}
+			}
+		}
+
+	case core.CmdGetPatternCode:
+		if name, ok := cmd.Payload["name"].(string); ok {
+			if content, err := a.luaEngine.GetPatternCode(name); err == nil {
+				if a.server != nil && a.server.Hub != nil {
+					a.server.Hub.Broadcast(server.NewMessage("pattern_code", map[string]string{"name": name, "code": content}))
+				}
+			} else {
+				log.Printf("Error getting pattern code: %v", err)
+			}
+		}
+
+	case core.CmdSavePatternCode:
+		name, nameOk := cmd.Payload["name"].(string)
+		code, codeOk := cmd.Payload["code"].(string)
+		if nameOk && codeOk {
+			if err := a.luaEngine.SavePatternCode(name, code); err != nil {
+				log.Printf("Error saving pattern: %v", err)
+			} else {
+				patterns, _ := a.luaEngine.GetPatternList()
+				if a.server != nil && a.server.Hub != nil {
+					a.server.Hub.Broadcast(server.NewMessage("pattern_list", patterns))
+				}
+			}
+		}
+
+	case core.CmdDeletePattern:
+		if name, ok := cmd.Payload["name"].(string); ok {
+			if err := a.luaEngine.DeletePattern(name); err != nil {
+				log.Printf("Error deleting pattern: %v", err)
+			} else {
+				patterns, _ := a.luaEngine.GetPatternList()
+				if a.server != nil && a.server.Hub != nil {
+					a.server.Hub.Broadcast(server.NewMessage("pattern_list", patterns))
+				}
+			}
+		}
+
+	default:
+		log.Printf("Unknown command type: %s", cmd.Type)
+	}
+}
+
+// syncState зчитує актуальний стан з BLE контролера і розсилає його
+func (a *Agent) syncState() {
+	bs := a.bleController.GetState()
+
+	// Sync internal State
+	a.state.SetPower(bs.IsOn)
+	a.state.SetColor(bs.R, bs.G, bs.B)
+	a.state.SetBrightness(bs.Brightness)
+	a.state.SetSpeed(bs.Speed)
+
+	// Publish global sync event
+	hex := fmt.Sprintf("#%02X%02X%02X", bs.R, bs.G, bs.B)
+	a.eventBus.Publish(core.Event{
+		Type: core.StateChangedEvent,
+		Payload: map[string]interface{}{
+			"isOn":       bs.IsOn,
+			"r":          bs.R,
+			"g":          bs.G,
+			"b":          bs.B,
+			"hex":        hex,
+			"brightness": bs.Brightness,
+			"speed":      bs.Speed,
+		},
+	})
 }
 
 func (a *Agent) Shutdown() {

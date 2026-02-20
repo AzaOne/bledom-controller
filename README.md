@@ -132,6 +132,7 @@ If you prefer to run the agent without Docker:
 - `internal/agent`: Core agent logic, ties all services together.
 - `internal/ble`: Handles Bluetooth LE connection and command packets.
 - `internal/lua`: The Lua scripting engine and Go function bindings.
+- `internal/mqtt`: Handles MQTT connections, HA Auto-Discovery, and message mapping.
 - `internal/server`: The WebSocket and HTTP server.
 - `internal/scheduler`: The cron-based job scheduler.
 - `static/`: Contains the frontend HTML, CSS, and JavaScript.
