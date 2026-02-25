@@ -56,8 +56,18 @@ func (e *Engine) luaSetPower(L *lua.LState) int {
 // cancellableSleep is a helper to sleep for a duration, but wake up immediately if the context is cancelled.
 // It returns true if the context was cancelled during sleep.
 func cancellableSleep(ctx context.Context, d time.Duration) bool {
+	timer := time.NewTimer(d)
+	defer func() {
+		if !timer.Stop() {
+			select {
+			case <-timer.C:
+			default:
+			}
+		}
+	}()
+
 	select {
-	case <-time.After(d):
+	case <-timer.C:
 		return false
 	case <-ctx.Done():
 		return true
