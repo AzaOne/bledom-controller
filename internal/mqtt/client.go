@@ -230,17 +230,13 @@ func (c *Client) Publish(subtopic string, payload interface{}, retained bool) {
 	msg := fmt.Sprintf("%v", payload)
 
 	token := c.client.Publish(topic, 0, retained, msg)
-
-	// Wait in a separate goroutine to avoid blocking
-	go func() {
-		if token.WaitTimeout(5 * time.Second) {
-			if token.Error() != nil {
-				log.Printf("[MQTT] Publish error to %s: %v", topic, token.Error())
-			}
-		} else {
-			log.Printf("[MQTT] Timeout publishing to %s", topic)
+	if token.WaitTimeout(5 * time.Second) {
+		if token.Error() != nil {
+			log.Printf("[MQTT] Publish error to %s: %v", topic, token.Error())
 		}
-	}()
+	} else {
+		log.Printf("[MQTT] Timeout publishing to %s", topic)
+	}
 }
 
 // onConnect is the library callback triggered when the MQTT connection is established.
