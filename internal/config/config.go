@@ -12,6 +12,7 @@ type ServerConfig struct {
 	Port           string   `json:"port"`
 	WebFilesDir    string   `json:"web_files_dir"`
 	AllowedOrigins []string `json:"allowed_origins"`
+	EnablePprof    bool     `json:"enable_pprof"`
 }
 
 // BLEConfig - налаштування Bluetooth Low Energy

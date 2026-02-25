@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/pprof"
 	"strings"
 
 	"bledom-controller/internal/core"
@@ -44,7 +45,7 @@ type Server struct {
 }
 
 // NewServer creates and initializes a new Server instance.
-func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *scheduler.Scheduler, cmdChan core.CommandChannel, port string, webFilesDir string, allowedOrigins []string) *Server {
+func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *scheduler.Scheduler, cmdChan core.CommandChannel, port string, webFilesDir string, allowedOrigins []string, enablePprof bool) *Server {
 	hub := NewHub()
 	go hub.Run()
 
@@ -83,12 +84,30 @@ func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(s.webFilesDir)))
 	mux.HandleFunc("/ws", s.handleWebSocket)
+	if enablePprof {
+		registerPprof(mux)
+		log.Println("[Server] pprof enabled at /debug/pprof/")
+	}
 	s.httpServer = &http.Server{Addr: ":" + port, Handler: mux}
 
 	// Subscribe to internal events to broadcast them to clients
 	go s.listenEvents()
 
 	return s
+}
+
+func registerPprof(mux *http.ServeMux) {
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	mux.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
+	mux.Handle("/debug/pprof/block", pprof.Handler("block"))
+	mux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+	mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	mux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+	mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 }
 
 // listenEvents subscribes to the event bus and broadcasts relevant events to all connected WebSocket clients.

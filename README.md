@@ -42,6 +42,7 @@ The easiest way to run the BLEDOM Controller is with Docker and Docker Compose.
 
 2.  **Review Configuration (Optional):**
     - Copy `config.json.example` to `config.json` and edit it to configure your MQTT broker settings and Home Assistant discovery (enabled by default).
+    - Set `server.enable_pprof` to `true` when you need runtime profiling endpoints (`/debug/pprof/*`).
     - The `patterns/` directory contains your Lua scripts. You can add your own `.lua` files here before starting.
     - Copy `schedules.json.example` to `schedules.json` to store your cron schedules. You can pre-configure it or manage schedules through the UI.
 
@@ -88,6 +89,18 @@ The controller fully supports MQTT for both command and state updates.
 - **Auto-Discovery:** By default, Home Assistant Auto-Discovery is enabled in `config.json`. Once connected, the BLEDOM strip will appear in Home Assistant as an RGB light, complete with effect support (Lua patterns).
 - **State & Control:** You can manually publish JSON payloads to control the device using your configured `topic_prefix` (e.g., `bledom/light/bledom-controller/set`).
 - **WebSockets:** All state changes—whether triggered by MQTT, the UI, or Lua scripts—are instantly broadcasted to all connected WebSockets and published back to the MQTT state topic.
+
+### Profiling (pprof)
+If `server.enable_pprof` is enabled, the agent exposes profiling endpoints:
+
+- `http://<host>:8080/debug/pprof/`
+- `http://<host>:8080/debug/pprof/heap`
+- `http://<host>:8080/debug/pprof/goroutine`
+
+Example heap snapshot:
+```sh
+go tool pprof http://<host>:8080/debug/pprof/heap
+```
 
 ## Lua API Reference
 

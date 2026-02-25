@@ -82,6 +82,7 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 		cfg.Server.Port,
 		cfg.Server.WebFilesDir,
 		cfg.Server.AllowedOrigins,
+		cfg.Server.EnablePprof,
 	)
 
 	// Create MQTT Client (optional)
