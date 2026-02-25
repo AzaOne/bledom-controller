@@ -4,6 +4,7 @@ package ble
 import (
 	"context"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -144,6 +145,32 @@ func contains(s []string, str string) bool {
 	return false
 }
 
+func isMissingMethodError(err error, method string) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, `Method "`+method+`"`) && strings.Contains(msg, "doesn't exist")
+}
+
+func isUnsupportedHeartbeatRead(err error) bool {
+	return isMissingMethodError(err, "ReadValue")
+}
+
+func isUnsupportedDisconnect(err error) bool {
+	return isMissingMethodError(err, "Disconnect")
+}
+
+func (c *Controller) safeDisconnect(device bluetooth.Device) {
+	if err := device.Disconnect(); err != nil {
+		if isUnsupportedDisconnect(err) {
+			log.Printf("[BLE] Disconnect method unsupported by backend. Ignoring: %v", err)
+			return
+		}
+		log.Printf("[BLE] Disconnect warning: %v", err)
+	}
+}
+
 // publishConnection publishes a connection event to the internal event bus.
 func (c *Controller) publishConnection(connected bool, rssi int16) {
 	if c.eventBus != nil {
@@ -280,16 +307,16 @@ func (c *Controller) Run(ctx context.Context) {
 			case err := <-discoverErrChan:
 				if err != nil {
 					log.Printf("[BLE] Service discovery failed: %v", err)
-					device.Disconnect()
+					c.safeDisconnect(device)
 					continue
 				}
 			case <-time.After(c.bleConnectTimeout):
 				log.Println("[BLE] Service discovery timed out. Disconnecting...")
-				device.Disconnect()
+				c.safeDisconnect(device)
 				time.Sleep(c.bleRetryDelay)
 				continue
 			case <-ctx.Done():
-				device.Disconnect()
+				c.safeDisconnect(device)
 				return
 			}
 
@@ -305,6 +332,11 @@ func (c *Controller) Run(ctx context.Context) {
 					if c.heartbeatChar.UUID() != (bluetooth.UUID{}) {
 						_, err := c.heartbeatChar.Read(heartbeatBuffer)
 						if err != nil {
+							if isUnsupportedHeartbeatRead(err) {
+								log.Printf("[BLE] Heartbeat read is not supported by this device/backend. Disabling heartbeat read checks: %v", err)
+								c.heartbeatChar = bluetooth.DeviceCharacteristic{}
+								continue
+							}
 							log.Printf("[BLE] Heartbeat failed: %v", err)
 							c.signalDisconnect()
 						}
@@ -315,7 +347,7 @@ func (c *Controller) Run(ctx context.Context) {
 
 				case <-ctx.Done():
 					log.Println("[BLE] Disconnecting due to shutdown...")
-					device.Disconnect()
+					c.safeDisconnect(device)
 					return
 				}
 			}
@@ -326,9 +358,7 @@ func (c *Controller) Run(ctx context.Context) {
 			c.characteristic = bluetooth.DeviceCharacteristic{}
 			c.heartbeatChar = bluetooth.DeviceCharacteristic{}
 
-			if err := device.Disconnect(); err != nil {
-				log.Printf("[BLE] Disconnect warning: %v", err)
-			}
+			c.safeDisconnect(device)
 
 			time.Sleep(c.bleRetryDelay)
 		}
