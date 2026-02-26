@@ -3,6 +3,7 @@ package ble
 
 import (
 	"context"
+	"errors"
 	"log"
 	"strings"
 	"sync"
@@ -19,6 +20,11 @@ var (
 
 	defaultServiceUUIDStr        = "0000fff0-0000-1000-8000-00805f9b34fb"
 	defaultCharacteristicUUIDStr = "0000fff3-0000-1000-8000-00805f9b34fb"
+	scanStopGracePeriod          = 2 * time.Second
+
+	errScanTimeout            = errors.New("ble scan timed out")
+	errServiceNotFound        = errors.New("ble service not found")
+	errCharacteristicNotFound = errors.New("ble characteristic not found")
 )
 
 // State represents the current logical state of the BLEDOM device.
@@ -171,6 +177,93 @@ func (c *Controller) safeDisconnect(device bluetooth.Device) {
 	}
 }
 
+func (c *Controller) stopScanAndWait(scanDone <-chan struct{}) {
+	_ = adapter.StopScan()
+
+	select {
+	case <-scanDone:
+	case <-time.After(scanStopGracePeriod):
+		log.Printf("[BLE] Warning: scan worker did not stop within %s", scanStopGracePeriod)
+	}
+}
+
+func (c *Controller) scanForTargetDevice(ctx context.Context) (bluetooth.ScanResult, error) {
+	scanResultChan := make(chan bluetooth.ScanResult, 1)
+	scanErrChan := make(chan error, 1)
+	scanDone := make(chan struct{})
+
+	go func() {
+		defer close(scanDone)
+		err := adapter.Scan(func(adapter *bluetooth.Adapter, result bluetooth.ScanResult) {
+			if !contains(c.deviceNames, result.LocalName()) {
+				return
+			}
+
+			select {
+			case scanResultChan <- result:
+			default:
+			}
+
+			_ = adapter.StopScan()
+		})
+		if err != nil {
+			select {
+			case scanErrChan <- err:
+			default:
+			}
+		}
+	}()
+
+	scanTimer := time.NewTimer(c.bleScanTimeout)
+	defer scanTimer.Stop()
+
+	select {
+	case result := <-scanResultChan:
+		c.stopScanAndWait(scanDone)
+		return result, nil
+	case err := <-scanErrChan:
+		c.stopScanAndWait(scanDone)
+		return bluetooth.ScanResult{}, err
+	case <-scanTimer.C:
+		c.stopScanAndWait(scanDone)
+		return bluetooth.ScanResult{}, errScanTimeout
+	case <-ctx.Done():
+		c.stopScanAndWait(scanDone)
+		return bluetooth.ScanResult{}, ctx.Err()
+	}
+}
+
+func (c *Controller) discoverDeviceCharacteristics(device bluetooth.Device) error {
+	services, err := device.DiscoverServices([]bluetooth.UUID{c.bleServiceUUID})
+	if err != nil {
+		return err
+	}
+	if len(services) == 0 {
+		return errServiceNotFound
+	}
+
+	chars, err := services[0].DiscoverCharacteristics([]bluetooth.UUID{c.bleCharacteristicUUID})
+	if err != nil {
+		return err
+	}
+	if len(chars) == 0 {
+		return errCharacteristicNotFound
+	}
+	c.characteristic = chars[0]
+
+	genericAccessUUID, _ := bluetooth.ParseUUID("00001800-0000-1000-8000-00805f9b34fb")
+	deviceNameUUID, _ := bluetooth.ParseUUID("00002a00-0000-1000-8000-00805f9b34fb")
+	gaServices, _ := device.DiscoverServices([]bluetooth.UUID{genericAccessUUID})
+	if len(gaServices) > 0 {
+		gaChars, _ := gaServices[0].DiscoverCharacteristics([]bluetooth.UUID{deviceNameUUID})
+		if len(gaChars) > 0 {
+			c.heartbeatChar = gaChars[0]
+		}
+	}
+
+	return nil
+}
+
 // publishConnection publishes a connection event to the internal event bus.
 func (c *Controller) publishConnection(connected bool, rssi int16) {
 	if c.eventBus != nil {
@@ -210,114 +303,51 @@ func (c *Controller) Run(ctx context.Context) {
 			c.heartbeatChar = bluetooth.DeviceCharacteristic{}
 
 			log.Println("[BLE] Scanning for BLEDOM device...")
-			adapter.StopScan()
-
-			ch := make(chan bluetooth.ScanResult, 1)
-
-			go func() {
-				err := adapter.Scan(func(adapter *bluetooth.Adapter, result bluetooth.ScanResult) {
-					if contains(c.deviceNames, result.LocalName()) {
-						adapter.StopScan()
-						select {
-						case ch <- result:
-						default:
-						}
-					}
-				})
-				if err != nil {
-					log.Printf("[BLE] Scan error: %v", err)
-				}
-			}()
+			_ = adapter.StopScan()
 
 			var deviceScanResult bluetooth.ScanResult
-			scanCtx, cancelScan := context.WithTimeout(ctx, c.bleScanTimeout)
-			select {
-			case deviceScanResult = <-ch:
-				log.Printf("[BLE] Found device: %s (RSSI: %d)", deviceScanResult.LocalName(), deviceScanResult.RSSI)
-				cancelScan()
-			case <-scanCtx.Done():
-				adapter.StopScan()
-				log.Println("[BLE] Scan timed out or interrupted. Retrying...")
-				cancelScan()
+			var scanErr error
+			deviceScanResult, scanErr = c.scanForTargetDevice(ctx)
+			if scanErr != nil {
+				if errors.Is(scanErr, context.Canceled) {
+					return
+				}
+				if errors.Is(scanErr, errScanTimeout) {
+					log.Println("[BLE] Scan timed out. Retrying...")
+				} else {
+					log.Printf("[BLE] Scan error: %v", scanErr)
+				}
 				time.Sleep(c.bleRetryDelay)
 				continue
 			}
-
-			var device bluetooth.Device
-			connectErrChan := make(chan error, 1)
+			log.Printf("[BLE] Found device: %s (RSSI: %d)", deviceScanResult.LocalName(), deviceScanResult.RSSI)
 
 			log.Printf("[BLE] Connecting to %s...", deviceScanResult.Address.String())
-
-			go func() {
-				d, err := adapter.Connect(deviceScanResult.Address, bluetooth.ConnectionParams{})
-				if err == nil {
-					device = d
-				}
-				connectErrChan <- err
-			}()
-
-			select {
-			case err := <-connectErrChan:
-				if err != nil {
-					log.Printf("[BLE] Failed to connect: %v", err)
-					c.publishConnection(false, 0)
-					time.Sleep(c.bleRetryDelay)
-					continue
-				}
-			case <-time.After(c.bleConnectTimeout):
-				log.Println("[BLE] Connection attempt timed out. Retrying...")
-				adapter.StopScan()
+			connectStartedAt := time.Now()
+			device, err := adapter.Connect(deviceScanResult.Address, bluetooth.ConnectionParams{})
+			if err != nil {
+				log.Printf("[BLE] Failed to connect: %v", err)
+				c.publishConnection(false, 0)
 				time.Sleep(c.bleRetryDelay)
 				continue
-			case <-ctx.Done():
-				return
+			}
+			if connectElapsed := time.Since(connectStartedAt); connectElapsed > c.bleConnectTimeout {
+				log.Printf("[BLE] Connect took %s (connect_timeout=%s)", connectElapsed.Round(time.Millisecond), c.bleConnectTimeout)
 			}
 
 			log.Printf("[BLE] Connected to %s", deviceScanResult.LocalName())
 			c.publishConnection(true, deviceScanResult.RSSI)
 
-			discoverErrChan := make(chan error, 1)
-			go func() {
-				services, err := device.DiscoverServices([]bluetooth.UUID{c.bleServiceUUID})
-				if err != nil || len(services) == 0 {
-					discoverErrChan <- err
-					return
-				}
-
-				chars, err := services[0].DiscoverCharacteristics([]bluetooth.UUID{c.bleCharacteristicUUID})
-				if err != nil || len(chars) == 0 {
-					discoverErrChan <- err
-					return
-				}
-				c.characteristic = chars[0]
-
-				genericAccessUUID, _ := bluetooth.ParseUUID("00001800-0000-1000-8000-00805f9b34fb")
-				deviceNameUUID, _ := bluetooth.ParseUUID("00002a00-0000-1000-8000-00805f9b34fb")
-				gaServices, _ := device.DiscoverServices([]bluetooth.UUID{genericAccessUUID})
-				if len(gaServices) > 0 {
-					gaChars, _ := gaServices[0].DiscoverCharacteristics([]bluetooth.UUID{deviceNameUUID})
-					if len(gaChars) > 0 {
-						c.heartbeatChar = gaChars[0]
-					}
-				}
-				discoverErrChan <- nil
-			}()
-
-			select {
-			case err := <-discoverErrChan:
-				if err != nil {
-					log.Printf("[BLE] Service discovery failed: %v", err)
-					c.safeDisconnect(device)
-					continue
-				}
-			case <-time.After(c.bleConnectTimeout):
-				log.Println("[BLE] Service discovery timed out. Disconnecting...")
+			discoveryStartedAt := time.Now()
+			if err := c.discoverDeviceCharacteristics(device); err != nil {
+				log.Printf("[BLE] Service discovery failed: %v", err)
+				c.publishConnection(false, 0)
 				c.safeDisconnect(device)
 				time.Sleep(c.bleRetryDelay)
 				continue
-			case <-ctx.Done():
-				c.safeDisconnect(device)
-				return
+			}
+			if discoveryElapsed := time.Since(discoveryStartedAt); discoveryElapsed > c.bleConnectTimeout {
+				log.Printf("[BLE] Discovery took %s (connect_timeout=%s)", discoveryElapsed.Round(time.Millisecond), c.bleConnectTimeout)
 			}
 
 			log.Println("[BLE] Device is ready.")
