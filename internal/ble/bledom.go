@@ -57,6 +57,10 @@ type Controller struct {
 	// --- State Management ---
 	state   State
 	stateMu sync.RWMutex
+
+	unsupportedWriteOnce         sync.Once
+	unsupportedHeartbeatReadOnce sync.Once
+	unsupportedDisconnectOnce    sync.Once
 }
 
 // NewController creates and initializes a new BLE controller with the provided parameters.
@@ -126,6 +130,14 @@ func (c *Controller) commandWriterLoop(ctx context.Context) {
 
 			_, err := c.characteristic.WriteWithoutResponse(payload)
 			if err != nil {
+				if isUnsupportedWrite(err) {
+					c.unsupportedWriteOnce.Do(func() {
+						log.Printf("[BLE] Characteristic write is not supported by this device/backend. Temporarily disabling writes and forcing reconnect: %v", err)
+					})
+					c.characteristic = bluetooth.DeviceCharacteristic{}
+					c.signalDisconnect()
+					continue
+				}
 				log.Printf("[BLE] Failed to write to device (assuming disconnected): %v", err)
 				c.signalDisconnect()
 			}
@@ -163,14 +175,29 @@ func isUnsupportedHeartbeatRead(err error) bool {
 	return isMissingMethodError(err, "ReadValue")
 }
 
+func isUnsupportedWrite(err error) bool {
+	return isMissingMethodError(err, "WriteValue")
+}
+
 func isUnsupportedDisconnect(err error) bool {
 	return isMissingMethodError(err, "Disconnect")
+}
+
+func isLocalConnectionAbort(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "le-connection-abort-by-local") ||
+		strings.Contains(msg, "connection-abort-by-local")
 }
 
 func (c *Controller) safeDisconnect(device bluetooth.Device) {
 	if err := device.Disconnect(); err != nil {
 		if isUnsupportedDisconnect(err) {
-			log.Printf("[BLE] Disconnect method unsupported by backend. Ignoring: %v", err)
+			c.unsupportedDisconnectOnce.Do(func() {
+				log.Printf("[BLE] Disconnect method unsupported by backend. Ignoring: %v", err)
+			})
 			return
 		}
 		log.Printf("[BLE] Disconnect warning: %v", err)
@@ -326,6 +353,11 @@ func (c *Controller) Run(ctx context.Context) {
 			connectStartedAt := time.Now()
 			device, err := adapter.Connect(deviceScanResult.Address, bluetooth.ConnectionParams{})
 			if err != nil {
+				if isLocalConnectionAbort(err) {
+					log.Printf("[BLE] Connection aborted locally by adapter/backend. Retrying...")
+					time.Sleep(c.bleRetryDelay)
+					continue
+				}
 				log.Printf("[BLE] Failed to connect: %v", err)
 				c.publishConnection(false, 0)
 				time.Sleep(c.bleRetryDelay)
@@ -363,7 +395,9 @@ func (c *Controller) Run(ctx context.Context) {
 						_, err := c.heartbeatChar.Read(heartbeatBuffer)
 						if err != nil {
 							if isUnsupportedHeartbeatRead(err) {
-								log.Printf("[BLE] Heartbeat read is not supported by this device/backend. Disabling heartbeat read checks: %v", err)
+								c.unsupportedHeartbeatReadOnce.Do(func() {
+									log.Printf("[BLE] Heartbeat read is not supported by this device/backend. Disabling heartbeat read checks: %v", err)
+								})
 								c.heartbeatChar = bluetooth.DeviceCharacteristic{}
 								continue
 							}
