@@ -1,6 +1,7 @@
 {
   "1": {
     "spec": "0 * * * *",
-    "command": "pattern sunrise.lua"
+    "command": "pattern sunrise.lua",
+    "enabled": true
   }
 }

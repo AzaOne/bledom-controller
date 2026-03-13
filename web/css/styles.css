@@ -120,13 +120,10 @@
     .dark-mode select, .dark-mode input[type="text"] { background-color: #424242; color: var(--text-dark); border-color: var(--border-dark); }
     .dark-mode .CodeMirror { border-color: var(--border-dark); }
     .dark-mode code { background-color: #555; }
-    .dark-mode #scheduleList li { border-bottom-color: var(--border-dark); }
     .dark-mode .docs-section, .dark-mode details.control-section { background-color: #2c2c2c; border-color: var(--border-dark); }
 
     .pattern-status { font-style: italic; color: #666; }
     #scheduleList { list-style: none; padding: 0; }
-    #scheduleList li { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; }
-    #scheduleList li:last-child { border-bottom: none; }
     .editor-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
     
     .CodeMirror {
@@ -312,8 +309,8 @@
     .schedule-item {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px 8px;
+        gap: 12px;
+        padding: 10px 10px;
         border-radius: 6px;
         background: var(--bg-light);
         border: 1px solid var(--border-light);
@@ -321,6 +318,16 @@
         transition: background 0.3s, border-color 0.3s;
     }
     .schedule-item:last-child { margin-bottom: 0; }
+    .schedule-item.schedule-paused {
+        opacity: 0.75;
+    }
+    .schedule-info { flex: 1; min-width: 0; }
+    .schedule-line {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
     .schedule-spec {
         background: var(--primary-color);
         color: #fff;
@@ -332,22 +339,75 @@
         flex-shrink: 0;
     }
     .schedule-command {
-        flex-grow: 1;
+        flex: 1;
         font-size: 0.9em;
         word-break: break-word;
     }
+    .schedule-meta {
+        margin-top: 4px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-size: 0.78em;
+        color: #666;
+    }
+    .schedule-state {
+        font-weight: 600;
+        color: var(--accent-color);
+    }
+    .schedule-state.paused {
+        color: var(--notice-color);
+    }
+    .schedule-time { color: inherit; }
     .schedule-empty {
         color: #888;
         font-style: italic;
         list-style: none;
         padding: 8px 0;
     }
+    .schedule-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    .schedule-btn {
+        padding: 6px 8px;
+        font-size: 0.8em;
+        margin: 0;
+    }
     .remove-schedule-btn {
         background-color: var(--warn-color);
-        padding: 5px 10px;
-        font-size: 0.8em;
-        flex-shrink: 0;
-        margin: 0;
+    }
+    .schedule-edit-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 8px;
+        padding: 8px 10px;
+        border: 1px dashed var(--border-light);
+        border-radius: 6px;
+        font-size: 0.9em;
+        color: #666;
+    }
+    .schedule-ghost-btn {
+        background: transparent;
+        color: var(--notice-color);
+        border: 1px solid var(--notice-color);
+        padding: 6px 10px;
+    }
+    .schedule-bulk-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+    .schedule-secondary-btn {
+        background: transparent;
+        color: var(--primary-color);
+        border: 1px solid var(--primary-color);
+        padding: 8px 12px;
     }
 
     /* Dark mode additions for cron builder */
@@ -356,5 +416,8 @@
     .dark-mode .cron-tab.active { color: var(--primary-color); }
     .dark-mode .schedule-item { background: #2a2a2a; border-color: var(--border-dark); }
     .dark-mode .schedule-empty { color: #888; }
+    .dark-mode .schedule-meta { color: #aaa; }
+    .dark-mode .schedule-edit-bar { border-color: var(--border-dark); color: #aaa; }
+    .dark-mode .schedule-ghost-btn { color: var(--notice-color); border-color: var(--notice-color); }
+    .dark-mode .schedule-secondary-btn { color: var(--primary-color); border-color: var(--primary-color); }
     .dark-mode .cron-sep { color: #888; }
-

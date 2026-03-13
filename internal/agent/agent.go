@@ -85,6 +85,12 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 		cfg.Server.EnablePprof,
 	)
 
+	a.scheduler.SetOnChange(func() {
+		if a.server != nil && a.server.Hub != nil {
+			a.server.Hub.Broadcast(server.NewMessage("schedule_list", a.scheduler.GetAll()))
+		}
+	})
+
 	// Create MQTT Client (optional)
 	a.mqttClient = mqtt.NewClient(cfg, a.eventBus, a.state, a.commandChannel, a.luaEngine.GetPatternList)
 
@@ -320,20 +326,38 @@ func (a *Agent) handleCommand(cmd core.Command) {
 			command = v
 		}
 		a.scheduler.Add(spec, command)
-
-		// Send an update event
-		if a.server != nil && a.server.Hub != nil {
-			a.server.Hub.Broadcast(server.NewMessage("schedule_list", a.scheduler.GetAll()))
+	case core.CmdUpdateSchedule:
+		spec, command := "", ""
+		if v, ok := cmd.Payload["spec"].(string); ok {
+			spec = v
+		}
+		if v, ok := cmd.Payload["command"].(string); ok {
+			command = v
+		}
+		if id, ok := parseScheduleID(cmd.Payload); ok {
+			a.scheduler.Update(id, spec, command)
 		}
 
 	case core.CmdRemoveSchedule:
-		if idStr, ok := cmd.Payload["id"].(string); ok {
-			if id, err := strconv.Atoi(idStr); err == nil {
-				a.scheduler.Remove(id)
-				if a.server != nil && a.server.Hub != nil {
-					a.server.Hub.Broadcast(server.NewMessage("schedule_list", a.scheduler.GetAll()))
-				}
+		if id, ok := parseScheduleID(cmd.Payload); ok {
+			a.scheduler.Remove(id)
+		}
+
+	case core.CmdRunScheduleNow:
+		if id, ok := parseScheduleID(cmd.Payload); ok {
+			a.scheduler.RunNow(id)
+		}
+
+	case core.CmdSetScheduleEnabled:
+		if id, ok := parseScheduleID(cmd.Payload); ok {
+			if enabled, ok := cmd.Payload["enabled"].(bool); ok {
+				a.scheduler.SetEnabled(id, enabled)
 			}
+		}
+
+	case core.CmdSetAllSchedules:
+		if enabled, ok := cmd.Payload["enabled"].(bool); ok {
+			a.scheduler.SetAllEnabled(enabled)
 		}
 
 	case core.CmdGetPatternCode:
@@ -376,6 +400,18 @@ func (a *Agent) handleCommand(cmd core.Command) {
 	default:
 		log.Printf("[Agent] Unknown command type: %s", cmd.Type)
 	}
+}
+
+func parseScheduleID(payload map[string]interface{}) (int, bool) {
+	if idStr, ok := payload["id"].(string); ok {
+		if id, err := strconv.Atoi(idStr); err == nil {
+			return id, true
+		}
+	}
+	if idFloat, ok := payload["id"].(float64); ok {
+		return int(idFloat), true
+	}
+	return 0, false
 }
 
 // syncState reads the latest state from the BLE controller and synchronizes it with the central state and event bus.

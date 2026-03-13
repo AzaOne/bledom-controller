@@ -1,4 +1,4 @@
-import { ui, renderPresets } from './ui.js';
+import { ui, renderPresets, enterScheduleEditMode, clearScheduleEditMode } from './ui.js';
 import { deviceAPI } from './api.js';
 import { debounce, normalizeHex, pad } from './utils.js';
 import { DEFAULT_PRESETS } from './constants.js';
@@ -150,7 +150,21 @@ export function initEventListeners() {
         }
     });
     ui.addScheduleBtn.addEventListener('click', () => {
+        const isEditing = !!ui.scheduleEditId;
         const isSimple = ui.cronSimpleMode && ui.cronSimpleMode.style.display !== 'none';
+
+        if (isEditing) {
+            const spec = ui.scheduleSpec.value.trim();
+            const command = ui.scheduleCommand.value.trim();
+            if (!spec || !command) {
+                alert('Please provide both a cron spec and a command.');
+                return;
+            }
+            deviceAPI.updateSchedule(ui.scheduleEditId, spec, command);
+            clearScheduleEditMode();
+            return;
+        }
+
         if (isSimple) {
             // Build cron spec from simple picker
             const hour = parseInt(ui.cronHour.value);
@@ -230,4 +244,51 @@ export function initEventListeners() {
         // Re-render presets to update Add button color/border for dark mode
         loadAndRender();
     });
+
+    // Schedule actions (event delegation)
+    if (ui.scheduleList) {
+        ui.scheduleList.addEventListener('click', (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+            const id = button.dataset.id;
+            if (!id) return;
+
+            if (button.classList.contains('remove-schedule-btn')) {
+                if (confirm('Remove this schedule?')) {
+                    deviceAPI.removeSchedule(id);
+                    if (ui.scheduleEditId && String(ui.scheduleEditId) === String(id)) {
+                        clearScheduleEditMode();
+                    }
+                }
+                return;
+            }
+
+            if (button.classList.contains('schedule-toggle-btn')) {
+                const enabled = button.dataset.enabled === 'true';
+                deviceAPI.setScheduleEnabled(id, !enabled);
+                return;
+            }
+
+            if (button.classList.contains('schedule-run-btn')) {
+                deviceAPI.runScheduleNow(id);
+                return;
+            }
+
+            if (button.classList.contains('schedule-edit-btn')) {
+                enterScheduleEditMode(id, button.dataset.spec, button.dataset.command);
+            }
+        });
+    }
+
+    if (ui.cancelScheduleEditBtn) {
+        ui.cancelScheduleEditBtn.addEventListener('click', () => clearScheduleEditMode());
+    }
+
+    if (ui.pauseAllSchedulesBtn) {
+        ui.pauseAllSchedulesBtn.addEventListener('click', () => deviceAPI.setAllSchedulesEnabled(false));
+    }
+
+    if (ui.resumeAllSchedulesBtn) {
+        ui.resumeAllSchedulesBtn.addEventListener('click', () => deviceAPI.setAllSchedulesEnabled(true));
+    }
 }

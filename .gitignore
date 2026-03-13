@@ -13,8 +13,8 @@ bledom-controller
 # User data files
 schedules.json
 config.json
+compose.yml
 
 # Test binary, build with `go test -c`
 *.test
 
-compose.yml

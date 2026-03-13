@@ -47,6 +47,11 @@ export const ui = {
     addScheduleBtn: document.getElementById('addScheduleBtn'),
     scheduleSpec: document.getElementById('scheduleSpec'),
     scheduleCommand: document.getElementById('scheduleCommand'),
+    scheduleEditBar: document.getElementById('scheduleEditBar'),
+    scheduleEditLabel: document.getElementById('scheduleEditLabel'),
+    cancelScheduleEditBtn: document.getElementById('cancelScheduleEditBtn'),
+    pauseAllSchedulesBtn: document.getElementById('pauseAllSchedulesBtn'),
+    resumeAllSchedulesBtn: document.getElementById('resumeAllSchedulesBtn'),
 
     // Cron builder
     cronTabSimple: document.getElementById('cronTabSimple'),
@@ -61,6 +66,7 @@ export const ui = {
 
     // CodeMirror instance will be stored here
     codeEditor: null,
+    scheduleEditId: null,
 };
 
 /**
@@ -162,6 +168,36 @@ export function populateTimePickers() {
     }
 }
 
+function setCronMode(mode) {
+    if (!ui.cronTabSimple || !ui.cronTabAdvanced) return;
+    ui.cronTabSimple.classList.toggle('active', mode === 'simple');
+    ui.cronTabAdvanced.classList.toggle('active', mode === 'advanced');
+    if (ui.cronSimpleMode) ui.cronSimpleMode.style.display = mode === 'simple' ? '' : 'none';
+    if (ui.cronAdvancedMode) ui.cronAdvancedMode.style.display = mode === 'advanced' ? '' : 'none';
+}
+
+export function enterScheduleEditMode(id, spec, command) {
+    ui.scheduleEditId = id;
+    if (ui.scheduleSpec) ui.scheduleSpec.value = spec || '';
+    if (ui.scheduleCommand) ui.scheduleCommand.value = command || '';
+    if (ui.addScheduleBtn) {
+        ui.addScheduleBtn.innerHTML = `<span class="material-icons" style="vertical-align: middle; font-size: 18px;">edit</span>
+            Update Schedule`;
+    }
+    if (ui.scheduleEditLabel) ui.scheduleEditLabel.textContent = `Editing schedule #${id}`;
+    if (ui.scheduleEditBar) ui.scheduleEditBar.style.display = '';
+    setCronMode('advanced');
+}
+
+export function clearScheduleEditMode() {
+    ui.scheduleEditId = null;
+    if (ui.addScheduleBtn) {
+        ui.addScheduleBtn.innerHTML = `<span class="material-icons" style="vertical-align: middle; font-size: 18px;">add_alarm</span>
+            Add Schedule`;
+    }
+    if (ui.scheduleEditBar) ui.scheduleEditBar.style.display = 'none';
+}
+
 /**
  * Updates the Lua pattern selection dropdowns AND the cron builder pattern select.
  * @param {string[]} patterns An array of pattern filenames.
@@ -188,32 +224,97 @@ export function updatePatternLists(patterns) {
  * @param {Object} schedules An object mapping schedule IDs to schedule entries.
  * @param {Function} removeScheduleApi A function to call when a remove button is clicked.
  */
-export function updateScheduleList(schedules, removeScheduleApi) {
+export function updateScheduleList(schedules) {
     ui.scheduleList.innerHTML = '';
     const ids = schedules ? Object.keys(schedules) : [];
+    if (ui.scheduleEditId && !ids.includes(String(ui.scheduleEditId))) {
+        clearScheduleEditMode();
+    }
     if (ids.length > 0) {
         ids.forEach(id => {
             const item = schedules[id];
             const li = document.createElement('li');
             li.className = 'schedule-item';
-            li.innerHTML = `
-                <span class="schedule-spec">${item.spec}</span>
-                <span class="schedule-command">${item.command}</span>
-                <button class="remove-schedule-btn" data-id="${id}" title="Remove schedule">
-                    <span class="material-icons" style="font-size:16px; vertical-align:middle;">delete</span>
-                </button>`;
+            if (!item.enabled) li.classList.add('schedule-paused');
+
+            const info = document.createElement('div');
+            info.className = 'schedule-info';
+
+            const line = document.createElement('div');
+            line.className = 'schedule-line';
+
+            const spec = document.createElement('span');
+            spec.className = 'schedule-spec';
+            spec.textContent = item.spec;
+
+            const command = document.createElement('span');
+            command.className = 'schedule-command';
+            command.textContent = item.command;
+
+            line.append(spec, command);
+
+            const meta = document.createElement('div');
+            meta.className = 'schedule-meta';
+
+            const state = document.createElement('span');
+            state.className = `schedule-state${item.enabled ? '' : ' paused'}`;
+            state.textContent = item.enabled ? 'Active' : 'Paused';
+
+            const next = document.createElement('span');
+            next.className = 'schedule-time';
+            next.textContent = item.enabled && item.next_run ? `Next: ${formatRunTime(item.next_run)}` : 'Next: —';
+
+            const last = document.createElement('span');
+            last.className = 'schedule-time';
+            last.textContent = item.last_run ? `Last: ${formatRunTime(item.last_run)}` : 'Last: —';
+
+            meta.append(state, next, last);
+            info.append(line, meta);
+
+            const actions = document.createElement('div');
+            actions.className = 'schedule-actions';
+
+            const toggleBtn = document.createElement('button');
+            toggleBtn.className = 'schedule-btn schedule-toggle-btn';
+            toggleBtn.dataset.id = id;
+            toggleBtn.dataset.enabled = item.enabled ? 'true' : 'false';
+            toggleBtn.title = item.enabled ? 'Pause schedule' : 'Resume schedule';
+            toggleBtn.innerHTML = `<span class="material-icons" style="font-size:16px; vertical-align:middle;">${item.enabled ? 'pause' : 'play_arrow'}</span>`;
+
+            const runBtn = document.createElement('button');
+            runBtn.className = 'schedule-btn schedule-run-btn';
+            runBtn.dataset.id = id;
+            runBtn.title = 'Run now';
+            runBtn.innerHTML = `<span class="material-icons" style="font-size:16px; vertical-align:middle;">play_circle</span>`;
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'schedule-btn schedule-edit-btn';
+            editBtn.dataset.id = id;
+            editBtn.dataset.spec = item.spec;
+            editBtn.dataset.command = item.command;
+            editBtn.title = 'Edit schedule';
+            editBtn.innerHTML = `<span class="material-icons" style="font-size:16px; vertical-align:middle;">edit</span>`;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'schedule-btn remove-schedule-btn';
+            removeBtn.dataset.id = id;
+            removeBtn.title = 'Remove schedule';
+            removeBtn.innerHTML = `<span class="material-icons" style="font-size:16px; vertical-align:middle;">delete</span>`;
+
+            actions.append(toggleBtn, runBtn, editBtn, removeBtn);
+
+            li.append(info, actions);
             ui.scheduleList.appendChild(li);
         });
     } else {
         ui.scheduleList.innerHTML = '<li class="schedule-empty">No schedules defined.</li>';
     }
-    // Re-attach listeners for dynamically added remove buttons
-    ui.scheduleList.querySelectorAll('.remove-schedule-btn').forEach(button => {
-        button.onclick = (e) => {
-            const id = e.currentTarget.dataset.id;
-            if (confirm('Remove this schedule?')) removeScheduleApi(id);
-        };
-    });
+}
+
+function formatRunTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString();
 }
 
 /**

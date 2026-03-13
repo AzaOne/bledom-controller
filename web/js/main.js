@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
 
                 case 'pattern_list': updatePatternLists(msg.payload); break;
-                case 'schedule_list': updateScheduleList(msg.payload, deviceAPI.removeSchedule); break;
+                case 'schedule_list': updateScheduleList(msg.payload); break;
                 case 'pattern_status': ui.patternStatus.textContent = msg.payload.running || 'Idle'; break;
                 case 'pattern_code':
                     ui.editorFilename.value = msg.payload.name;
