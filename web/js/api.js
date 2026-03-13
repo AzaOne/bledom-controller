@@ -1,37 +1,23 @@
-// web/js/api.js
-
 import { debounce } from './utils.js';
-import { ui } from './ui.js'; // We might need `ui.scheduleHour.value` etc here.
+import { ui } from './ui.js';
 
-let socketInstance = null; // Private variable to hold the WebSocket instance
+let socketInstance = null;
 
-/**
- * Sets the WebSocket instance for the API module to use.
- * This allows `main.js` to initialize the socket and then provide it to `api.js`.
- * @param {WebSocket} ws The WebSocket instance.
- */
 export function setSocket(ws) {
     socketInstance = ws;
 }
 
-/**
- * Sends a command over the WebSocket connection.
- * @param {string} type The command type.
- * @param {Object} payload The command payload.
- */
 function sendSocketCommand(type, payload) {
     if (!socketInstance || socketInstance.readyState !== WebSocket.OPEN) {
-        console.warn("WebSocket not open. Ignoring command:", type, payload);
+        console.warn('WebSocket not open. Ignoring command:', type, payload);
         return;
     }
     socketInstance.send(JSON.stringify({ type, payload }));
 }
 
-// Exported API functions, using sendSocketCommand
 export const deviceAPI = {
     setPower: (isOn) => sendSocketCommand('setPower', { isOn }),
     setColor: (r, g, b) => sendSocketCommand('setColor', { r, g, b }),
-    // Debounce brightness and speed to prevent flooding the server
     setBrightness: (value) => debounce(sendSocketCommand, ['setBrightness', { value: parseInt(value) }], 'brightness', 100),
     setHardwarePattern: (id) => sendSocketCommand('setHardwarePattern', { id }),
     setSpeed: (value) => debounce(sendSocketCommand, ['setSpeed', { value: parseInt(value) }], 'speed', 50),

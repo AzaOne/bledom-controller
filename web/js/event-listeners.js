@@ -1,17 +1,19 @@
-import { ui, renderPresets, enterScheduleEditMode, clearScheduleEditMode } from './ui.js';
+import {
+    ui,
+    renderPresets,
+    enterScheduleEditMode,
+    clearScheduleEditMode,
+    toggleDarkMode,
+    navigateTo,
+} from './ui.js';
 import { deviceAPI } from './api.js';
 import { debounce, normalizeHex, pad } from './utils.js';
 import { DEFAULT_PRESETS } from './constants.js';
 
-/**
- * Initializes all event listeners for UI elements.
- */
 export function initEventListeners() {
-    // 1. Power Controls
     ui.powerOnBtn.addEventListener('click', () => deviceAPI.setPower(true));
     ui.powerOffBtn.addEventListener('click', () => deviceAPI.setPower(false));
 
-    // 2. Iro.js Color Picker Logic
     const sendColor = (color) => {
         const { r, g, b } = color.rgb;
         deviceAPI.setColor(r, g, b);
@@ -23,103 +25,89 @@ export function initEventListeners() {
         });
     }
 
-    // 3. Color Presets
     const STORAGE_KEY = 'ble_presets';
     const OLD_STORAGE_KEY = 'ble_custom_presets';
 
-    // Helper: Apply color to device + update picker
     const handlePresetClick = (hex) => {
         if (ui.colorPicker) ui.colorPicker.color.hexString = hex;
         const bigint = parseInt(hex.substring(1), 16);
         deviceAPI.setColor((bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255);
     };
 
-    // Logic for "Add (+)" button
     const handleAddColor = () => {
         if (!ui.colorPicker) return;
-
-        // Robust normalization
         const currentColor = normalizeHex(ui.colorPicker.color.hexString);
-
         const stored = localStorage.getItem(STORAGE_KEY);
-        // Normalize all stored presets
         const presets = stored ? JSON.parse(stored).map(c => normalizeHex(c)) : [];
-
         if (!presets.includes(currentColor)) {
             presets.push(currentColor);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
-            loadAndRender(); // Re-render to move the + button
+            loadAndRender();
         } else {
             alert('This color is already in your presets.');
         }
     };
 
-    // Logic for Rendering
     const loadAndRender = () => {
         let stored = localStorage.getItem(STORAGE_KEY);
         let presets = [];
-
         if (!stored) {
-            // Migration / Init Logic
             const oldStored = localStorage.getItem(OLD_STORAGE_KEY);
             const oldPresets = oldStored ? JSON.parse(oldStored) : [];
-
-            // Merge defaults + old custom presets, removing duplicates using robust normalization
-            const merged = [...new Set([...DEFAULT_PRESETS, ...oldPresets].map(c => normalizeHex(c)))];
-
-            presets = merged;
+            presets = [...new Set([...DEFAULT_PRESETS, ...oldPresets].map(c => normalizeHex(c)))];
             localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
         } else {
-            // Normalize stored presets just in case (e.g. if manual edits happened)
             presets = JSON.parse(stored).map(c => normalizeHex(c));
         }
-
         renderPresets(
             presets,
-            (hex) => handlePresetClick(hex), // onApply
-            (index) => {                     // onDelete
+            (hex) => handlePresetClick(hex),
+            (index) => {
                 presets.splice(index, 1);
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
                 loadAndRender();
             },
-            handleAddColor                   // onAdd
+            handleAddColor,
         );
     };
 
-    // Initial Load
     loadAndRender();
 
-
-    // 4. Brightness Slider
-    ui.brightnessSlider.addEventListener('input', (e) => {
+    ui.brightnessSlider.addEventListener('input', e => {
         ui.brightnessValue.textContent = `${e.target.value}%`;
-        deviceAPI.setBrightness(e.target.value)
+        deviceAPI.setBrightness(e.target.value);
+        highlightActiveBrightnessChip(parseInt(e.target.value));
     });
 
-    // 5. Brightness Presets
-    document.querySelectorAll('.brightness-presets button').forEach(button => {
-        button.addEventListener('click', () => {
-            const val = button.dataset.brightness;
+    document.querySelectorAll('#brightnessPresets .chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const val = chip.dataset.brightness;
             ui.brightnessSlider.value = val;
             ui.brightnessValue.textContent = `${val}%`;
             deviceAPI.setBrightness(val);
+            highlightActiveBrightnessChip(parseInt(val));
         });
     });
 
-    // 6. Speed Slider
-    ui.speedSlider.addEventListener('input', (e) => {
+    function highlightActiveBrightnessChip(val) {
+        document.querySelectorAll('#brightnessPresets .chip').forEach(c => {
+            c.classList.toggle('active', parseInt(c.dataset.brightness) === val);
+        });
+    }
+
+    ui.speedSlider.addEventListener('input', e => {
         ui.speedValue.textContent = `${e.target.value}%`;
-        const maxDuration = 15; const minDuration = 0.2;
-        const duration = maxDuration - ((parseInt(e.target.value) / 100) * (maxDuration - minDuration));
+        const maxD = 15, minD = 0.8;
+        const maxV = parseInt(e.target.max, 10) || 100;
+        const dur = maxD - ((parseInt(e.target.value) / maxV) * (maxD - minD));
         deviceAPI.setSpeed(e.target.value);
         document.querySelectorAll('.pattern-preview').forEach(preview => {
             if (window.getComputedStyle(preview).animationName !== 'none') {
-                preview.style.animationDuration = `${duration}s`;
+                preview.style.animationDuration = `${dur}s`;
             }
         });
     });
 
-    // 7. Other settings
     ui.syncTimeBtn.addEventListener('click', deviceAPI.syncTime);
     ui.setRgbOrderBtn.addEventListener('click', () => {
         deviceAPI.setRgbOrder(parseInt(ui.wire1.value), parseInt(ui.wire2.value), parseInt(ui.wire3.value));
@@ -127,18 +115,22 @@ export function initEventListeners() {
     ui.setScheduleBtn.addEventListener('click', () => deviceAPI.setDeviceSchedule(true));
     ui.clearScheduleBtn.addEventListener('click', () => deviceAPI.setDeviceSchedule(false));
 
-    // 8. Patterns & Scheduler
     ui.runPatternBtn.addEventListener('click', () => { if (ui.patternSelector.value) deviceAPI.runPattern(ui.patternSelector.value); });
     ui.stopPatternBtn.addEventListener('click', deviceAPI.stopPattern);
 
-    ui.loadPatternBtn.addEventListener('click', () => { if (ui.editorPatternSelector.value) deviceAPI.getPatternCode(ui.editorPatternSelector.value); });
+    ui.loadPatternBtn.addEventListener('click', () => {
+        if (ui.editorPatternSelector.value) deviceAPI.getPatternCode(ui.editorPatternSelector.value);
+    });
     ui.newPatternBtn.addEventListener('click', () => {
         ui.editorFilename.value = 'new-pattern.lua';
         ui.editorFilename.focus();
     });
     ui.savePatternBtn.addEventListener('click', () => {
         const filename = ui.editorFilename.value.trim();
-        if (!filename || !filename.endsWith('.lua')) { alert('Filename is invalid. It must not be empty and must end with .lua'); return; }
+        if (!filename || !filename.endsWith('.lua')) {
+            alert('Filename is invalid. It must not be empty and must end with .lua');
+            return;
+        }
         deviceAPI.savePatternCode(filename, ui.codeEditor.getValue());
         alert(`Pattern "${filename}" saved!`);
     });
@@ -149,6 +141,7 @@ export function initEventListeners() {
             if (ui.editorFilename.value === filename) ui.newPatternBtn.click();
         }
     });
+
     ui.addScheduleBtn.addEventListener('click', () => {
         const isEditing = !!ui.scheduleEditId;
         const isSimple = ui.cronSimpleMode && ui.cronSimpleMode.style.display !== 'none';
@@ -156,29 +149,26 @@ export function initEventListeners() {
         if (isEditing) {
             const spec = ui.scheduleSpec.value.trim();
             const command = ui.scheduleCommand.value.trim();
-            if (!spec || !command) {
-                alert('Please provide both a cron spec and a command.');
-                return;
-            }
+            if (!spec || !command) { alert('Please provide both a cron spec and a command.'); return; }
             deviceAPI.updateSchedule(ui.scheduleEditId, spec, command);
             clearScheduleEditMode();
             return;
         }
 
         if (isSimple) {
-            // Build cron spec from simple picker
             const hour = parseInt(ui.cronHour.value);
             const minute = parseInt(ui.cronMinute.value);
             const everyDay = ui.cronEveryDay && ui.cronEveryDay.checked;
-            const checkedDays = [...document.querySelectorAll('input[name="cronDay"]:checked')]
-                .map(cb => parseInt(cb.value));
+            const checkedDays = [...document.querySelectorAll('input[name="cronDay"]:checked')].map(cb => parseInt(cb.value));
 
             if (!everyDay && checkedDays.length === 0) {
                 alert('Please select at least one day, or check "Every Day".');
                 return;
             }
 
-            const dowPart = everyDay ? '*' : checkedDays.map(d => d === 0 ? '1' : d === 1 ? '2' : d === 2 ? '3' : d === 3 ? '4' : d === 4 ? '5' : d === 5 ? '6' : '0').join(',');
+            // Map 0=Mon … 6=Sun -> cron DOW (Mon=1,Tue=2,…,Sun=0)
+            const cronDOW = { 0:'1', 1:'2', 2:'3', 3:'4', 4:'5', 5:'6', 6:'0' };
+            const dowPart = everyDay ? '*' : checkedDays.map(d => cronDOW[d]).join(',');
             const spec = `${minute} ${hour} * * ${dowPart}`;
 
             let command = ui.cronCommandType.value;
@@ -187,10 +177,8 @@ export function initEventListeners() {
                 if (!patternName) { alert('Please select a pattern.'); return; }
                 command = `pattern ${patternName}`;
             }
-
             deviceAPI.addSchedule(spec, command);
         } else {
-            // Advanced mode: raw inputs
             const spec = ui.scheduleSpec.value.trim();
             const command = ui.scheduleCommand.value.trim();
             if (spec && command) deviceAPI.addSchedule(spec, command);
@@ -198,7 +186,6 @@ export function initEventListeners() {
         }
     });
 
-    // 9b. Cron Builder: Tab switching
     if (ui.cronTabSimple && ui.cronTabAdvanced) {
         [ui.cronTabSimple, ui.cronTabAdvanced].forEach(tab => {
             tab.addEventListener('click', () => {
@@ -211,7 +198,6 @@ export function initEventListeners() {
         });
     }
 
-    // 9c. Cron Builder: "Every Day" toggle syncs individual day checkboxes
     if (ui.cronEveryDay) {
         ui.cronEveryDay.addEventListener('change', () => {
             const checked = ui.cronEveryDay.checked;
@@ -227,56 +213,9 @@ export function initEventListeners() {
         });
     });
 
-    // 9d. Cron Builder: show/hide pattern selector based on command type
     if (ui.cronCommandType) {
         ui.cronCommandType.addEventListener('change', () => {
-            ui.cronPatternSelect.style.display =
-                ui.cronCommandType.value === 'pattern' ? '' : 'none';
-        });
-    }
-
-    ui.darkModeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('dark-mode');
-        const isDark = document.body.classList.contains('dark-mode');
-        localStorage.setItem('darkMode', isDark);
-        document.querySelector('#darkModeToggle .material-icons').textContent = isDark ? 'light_mode' : 'dark_mode';
-
-        // Re-render presets to update Add button color/border for dark mode
-        loadAndRender();
-    });
-
-    // Schedule actions (event delegation)
-    if (ui.scheduleList) {
-        ui.scheduleList.addEventListener('click', (e) => {
-            const button = e.target.closest('button');
-            if (!button) return;
-            const id = button.dataset.id;
-            if (!id) return;
-
-            if (button.classList.contains('remove-schedule-btn')) {
-                if (confirm('Remove this schedule?')) {
-                    deviceAPI.removeSchedule(id);
-                    if (ui.scheduleEditId && String(ui.scheduleEditId) === String(id)) {
-                        clearScheduleEditMode();
-                    }
-                }
-                return;
-            }
-
-            if (button.classList.contains('schedule-toggle-btn')) {
-                const enabled = button.dataset.enabled === 'true';
-                deviceAPI.setScheduleEnabled(id, !enabled);
-                return;
-            }
-
-            if (button.classList.contains('schedule-run-btn')) {
-                deviceAPI.runScheduleNow(id);
-                return;
-            }
-
-            if (button.classList.contains('schedule-edit-btn')) {
-                enterScheduleEditMode(id, button.dataset.spec, button.dataset.command);
-            }
+            ui.cronPatternSelect.style.display = ui.cronCommandType.value === 'pattern' ? '' : 'none';
         });
     }
 
@@ -284,11 +223,44 @@ export function initEventListeners() {
         ui.cancelScheduleEditBtn.addEventListener('click', () => clearScheduleEditMode());
     }
 
-    if (ui.pauseAllSchedulesBtn) {
-        ui.pauseAllSchedulesBtn.addEventListener('click', () => deviceAPI.setAllSchedulesEnabled(false));
+    if (ui.pauseAllSchedulesBtn) ui.pauseAllSchedulesBtn.addEventListener('click', () => deviceAPI.setAllSchedulesEnabled(false));
+    if (ui.resumeAllSchedulesBtn) ui.resumeAllSchedulesBtn.addEventListener('click', () => deviceAPI.setAllSchedulesEnabled(true));
+
+    if (ui.scheduleList) {
+        ui.scheduleList.addEventListener('click', e => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            const id = btn.dataset.id;
+            if (!id) return;
+
+            if (btn.classList.contains('remove-schedule-btn')) {
+                if (confirm('Remove this schedule?')) {
+                    deviceAPI.removeSchedule(id);
+                    if (ui.scheduleEditId && String(ui.scheduleEditId) === String(id)) clearScheduleEditMode();
+                }
+                return;
+            }
+            if (btn.classList.contains('schedule-toggle-btn')) {
+                deviceAPI.setScheduleEnabled(id, btn.dataset.enabled !== 'true');
+                return;
+            }
+            if (btn.classList.contains('schedule-run-btn')) {
+                deviceAPI.runScheduleNow(id);
+                return;
+            }
+            if (btn.classList.contains('schedule-edit-btn')) {
+                enterScheduleEditMode(id, btn.dataset.spec, btn.dataset.command);
+            }
+        });
+
+        ui.scheduleList.addEventListener('change', e => {
+            const input = e.target;
+            if (!input || !input.classList.contains('schedule-toggle-input')) return;
+            const id = input.dataset.id;
+            if (!id) return;
+            deviceAPI.setScheduleEnabled(id, input.checked);
+        });
     }
 
-    if (ui.resumeAllSchedulesBtn) {
-        ui.resumeAllSchedulesBtn.addEventListener('click', () => deviceAPI.setAllSchedulesEnabled(true));
-    }
+    ui.darkModeToggle.addEventListener('click', toggleDarkMode);
 }

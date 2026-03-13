@@ -3,163 +3,230 @@
 import { HARDWARE_PATTERNS } from './constants.js';
 import { pad } from './utils.js';
 
-// DOM elements collected into a single object
+// ──────────────────────────────────────────────────────────────
+// DOM element registry
+// ──────────────────────────────────────────────────────────────
 export const ui = {
-    statusDiv: document.getElementById('connectionStatus'),
-    controls: document.getElementById('controls'),
-    darkModeToggle: document.getElementById('darkModeToggle'),
+    // Top bar
+    statusPill:              document.getElementById('statusPill'),
+    statusDot:               document.getElementById('statusDot'),
+    statusText:              document.getElementById('statusText'),
+    rssiPill:                document.getElementById('rssiPill'),
+    rssiText:                document.getElementById('rssiText'),
+    darkModeToggle:          document.getElementById('darkModeToggle'),
+    sidebarToggle:           document.getElementById('sidebarToggle'),
+    offlineOverlay:          document.getElementById('offlineOverlay'),
 
-    powerOnBtn: document.getElementById('powerOnBtn'),
-    powerOffBtn: document.getElementById('powerOffBtn'),
-    colorPickerContainer: document.getElementById('colorPickerContainer'),
-    brightnessSlider: document.getElementById('brightnessSlider'),
-    brightnessValue: document.getElementById('brightnessValue'),
+    // Power
+    powerOnBtn:              document.getElementById('powerOnBtn'),
+    powerOffBtn:             document.getElementById('powerOffBtn'),
 
-    // Presets Container
-    customPresetsContainer: document.getElementById('customPresetsContainer'),
+    // Color
+    colorPickerContainer:    document.getElementById('colorPickerContainer'),
+    customPresetsContainer:  document.getElementById('customPresetsContainer'),
+    brightnessSlider:        document.getElementById('brightnessSlider'),
+    brightnessValue:         document.getElementById('brightnessValue'),
 
-    patternGrid: document.getElementById('patternGrid'),
-    speedSlider: document.getElementById('speedSlider'),
-    speedValue: document.getElementById('speedValue'),
+    // Effects
+    patternGrid:             document.getElementById('patternGrid'),
+    speedSlider:             document.getElementById('speedSlider'),
+    speedValue:              document.getElementById('speedValue'),
 
-    syncTimeBtn: document.getElementById('syncTimeBtn'),
-    setScheduleBtn: document.getElementById('setScheduleBtn'),
-    clearScheduleBtn: document.getElementById('clearScheduleBtn'),
-    scheduleHour: document.getElementById('scheduleHour'),
-    scheduleMinute: document.getElementById('scheduleMinute'),
-    scheduleSecond: document.getElementById('scheduleSecond'),
-    scheduleAction: document.getElementById('scheduleAction'),
-    setRgbOrderBtn: document.getElementById('setRgbOrderBtn'),
-    wire1: document.getElementById('wire1'), wire2: document.getElementById('wire2'), wire3: document.getElementById('wire3'),
+    // Lua
+    patternSelector:         document.getElementById('patternSelector'),
+    runPatternBtn:           document.getElementById('runPatternBtn'),
+    stopPatternBtn:          document.getElementById('stopPatternBtn'),
+    patternStatus:           document.getElementById('patternStatus'),
 
-    patternSelector: document.getElementById('patternSelector'),
-    editorPatternSelector: document.getElementById('editorPatternSelector'),
-    runPatternBtn: document.getElementById('runPatternBtn'),
-    stopPatternBtn: document.getElementById('stopPatternBtn'),
-    patternStatus: document.getElementById('patternStatus'),
-    loadPatternBtn: document.getElementById('loadPatternBtn'),
-    newPatternBtn: document.getElementById('newPatternBtn'),
-    savePatternBtn: document.getElementById('savePatternBtn'),
-    deletePatternBtn: document.getElementById('deletePatternBtn'),
-    editorFilename: document.getElementById('editorFilename'),
+    // Editor
+    editorPatternSelector:   document.getElementById('editorPatternSelector'),
+    loadPatternBtn:          document.getElementById('loadPatternBtn'),
+    newPatternBtn:           document.getElementById('newPatternBtn'),
+    savePatternBtn:          document.getElementById('savePatternBtn'),
+    deletePatternBtn:        document.getElementById('deletePatternBtn'),
+    editorFilename:          document.getElementById('editorFilename'),
 
-    scheduleList: document.getElementById('scheduleList'),
-    addScheduleBtn: document.getElementById('addScheduleBtn'),
-    scheduleSpec: document.getElementById('scheduleSpec'),
-    scheduleCommand: document.getElementById('scheduleCommand'),
-    scheduleEditBar: document.getElementById('scheduleEditBar'),
-    scheduleEditLabel: document.getElementById('scheduleEditLabel'),
-    cancelScheduleEditBtn: document.getElementById('cancelScheduleEditBtn'),
-    pauseAllSchedulesBtn: document.getElementById('pauseAllSchedulesBtn'),
-    resumeAllSchedulesBtn: document.getElementById('resumeAllSchedulesBtn'),
+    // Scheduler
+    cronTabSimple:           document.getElementById('cronTabSimple'),
+    cronTabAdvanced:         document.getElementById('cronTabAdvanced'),
+    cronSimpleMode:          document.getElementById('cronSimpleMode'),
+    cronAdvancedMode:        document.getElementById('cronAdvancedMode'),
+    cronHour:                document.getElementById('cronHour'),
+    cronMinute:              document.getElementById('cronMinute'),
+    cronEveryDay:            document.getElementById('cronEveryDay'),
+    cronCommandType:         document.getElementById('cronCommandType'),
+    cronPatternSelect:       document.getElementById('cronPatternSelect'),
+    scheduleSpec:            document.getElementById('scheduleSpec'),
+    scheduleCommand:         document.getElementById('scheduleCommand'),
+    addScheduleBtn:          document.getElementById('addScheduleBtn'),
+    scheduleEditBar:         document.getElementById('scheduleEditBar'),
+    scheduleEditLabel:       document.getElementById('scheduleEditLabel'),
+    cancelScheduleEditBtn:   document.getElementById('cancelScheduleEditBtn'),
+    pauseAllSchedulesBtn:    document.getElementById('pauseAllSchedulesBtn'),
+    resumeAllSchedulesBtn:   document.getElementById('resumeAllSchedulesBtn'),
+    scheduleList:            document.getElementById('scheduleList'),
 
-    // Cron builder
-    cronTabSimple: document.getElementById('cronTabSimple'),
-    cronTabAdvanced: document.getElementById('cronTabAdvanced'),
-    cronSimpleMode: document.getElementById('cronSimpleMode'),
-    cronAdvancedMode: document.getElementById('cronAdvancedMode'),
-    cronHour: document.getElementById('cronHour'),
-    cronMinute: document.getElementById('cronMinute'),
-    cronEveryDay: document.getElementById('cronEveryDay'),
-    cronCommandType: document.getElementById('cronCommandType'),
-    cronPatternSelect: document.getElementById('cronPatternSelect'),
+    // Advanced
+    syncTimeBtn:             document.getElementById('syncTimeBtn'),
+    setScheduleBtn:          document.getElementById('setScheduleBtn'),
+    clearScheduleBtn:        document.getElementById('clearScheduleBtn'),
+    scheduleHour:            document.getElementById('scheduleHour'),
+    scheduleMinute:          document.getElementById('scheduleMinute'),
+    scheduleSecond:          document.getElementById('scheduleSecond'),
+    scheduleAction:          document.getElementById('scheduleAction'),
+    setRgbOrderBtn:          document.getElementById('setRgbOrderBtn'),
+    wire1:                   document.getElementById('wire1'),
+    wire2:                   document.getElementById('wire2'),
+    wire3:                   document.getElementById('wire3'),
 
-    // CodeMirror instance will be stored here
-    codeEditor: null,
-    scheduleEditId: null,
+    // CodeMirror & iro.js instances (set later)
+    codeEditor:              null,
+    colorPicker:             null,
+    scheduleEditId:          null,
 };
 
-/**
- * Initializes the iro.js Color Picker.
- */
-export function initColorPicker() {
-    ui.colorPicker = new iro.ColorPicker("#colorPickerContainer", {
-        width: 250,
-        color: "#ff0000",
-        borderWidth: 2,
-        borderColor: "#fff",
-        layout: [
-            {
-                component: iro.ui.Wheel,
-                options: {}
-            },
-            {
-                component: iro.ui.Slider,
-                options: {
-                    sliderType: 'value'
-                }
-            }
-        ]
+// ──────────────────────────────────────────────────────────────
+// Navigation
+// ──────────────────────────────────────────────────────────────
+export function navigateTo(sectionId) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => {
+        b.classList.toggle('active', b.dataset.section === sectionId);
+        b.setAttribute('aria-selected', b.dataset.section === sectionId ? 'true' : 'false');
     });
+    const target = document.getElementById(sectionId);
+    if (target) target.classList.add('active');
+    if (sectionId === 'sectionColor' && ui.colorPicker) {
+        requestAnimationFrame(() => ui.colorPicker.resize(230));
+    }
+}
+
+export function initNavigation() {
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => navigateTo(btn.dataset.section));
+    });
+}
+
+// ──────────────────────────────────────────────────────────────
+// Sidebar toggle
+// ──────────────────────────────────────────────────────────────
+export function initSidebarToggle() {
+    const sidebar = document.getElementById('sidebar');
+    if (!ui.sidebarToggle || !sidebar) return;
+    const key = 'sidebar_collapsed';
+    if (localStorage.getItem(key) === 'true') sidebar.classList.add('collapsed');
+
+    ui.sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        localStorage.setItem(key, sidebar.classList.contains('collapsed'));
+    });
+}
+
+// ──────────────────────────────────────────────────────────────
+// Dark mode
+// ──────────────────────────────────────────────────────────────
+export function initDarkMode() {
+    // Default is dark – only switch to light if explicitly saved
+    if (localStorage.getItem('darkMode') === 'false') {
+        document.body.classList.remove('dark-mode');
+        document.body.classList.add('light-mode');
+    }
+    updateDarkModeIcon();
+}
+
+function updateDarkModeIcon() {
+    const isDark = document.body.classList.contains('dark-mode');
+    const icon = ui.darkModeToggle.querySelector('.material-icons-round');
+    if (icon) icon.textContent = isDark ? 'light_mode' : 'dark_mode';
+}
+
+export function toggleDarkMode() {
+    const isDark = document.body.classList.contains('dark-mode');
+    document.body.classList.toggle('dark-mode', !isDark);
+    document.body.classList.toggle('light-mode', isDark);
+    localStorage.setItem('darkMode', !isDark);
+    updateDarkModeIcon();
+}
+
+// ──────────────────────────────────────────────────────────────
+// Connection status
+// ──────────────────────────────────────────────────────────────
+const STATUS_CLASSES = ['connecting', 'disconnected', 'agent-connected', 'device-disconnected', 'connected'];
+
+export function setStatus(cssClass, message) {
+    ui.statusPill.classList.remove(...STATUS_CLASSES);
+    ui.statusPill.classList.add(cssClass);
+    ui.statusText.textContent = message;
+}
+
+export function setRSSI(rssi) {
+    if (rssi && rssi !== 0) {
+        ui.rssiText.textContent = `${rssi} dBm`;
+        ui.rssiPill.style.display = 'flex';
+    } else {
+        ui.rssiPill.style.display = 'none';
+    }
+}
+
+// ──────────────────────────────────────────────────────────────
+// Offline overlay
+// ──────────────────────────────────────────────────────────────
+export function showControls(visible) {
+    if (visible) {
+        ui.offlineOverlay.classList.add('hidden');
+    } else {
+        ui.offlineOverlay.classList.remove('hidden');
+    }
+}
+
+// ──────────────────────────────────────────────────────────────
+// Color Picker (iro.js)
+// ──────────────────────────────────────────────────────────────
+export function initColorPicker() {
+    const Iro = window.iro;
+    if (!Iro || !Iro.ColorPicker) {
+        if (ui.colorPickerContainer) {
+            ui.colorPickerContainer.innerHTML = '<div class="hint">Color picker failed to load.</div>';
+        }
+        console.warn('iro.js is not available on window.iro');
+        ui.colorPicker = null;
+        return null;
+    }
+
+    ui.colorPicker = new Iro.ColorPicker('#colorPickerContainer', {
+        width: 230,
+        color: '#ff0000',
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.15)',
+        layout: [
+            { component: Iro.ui.Wheel, options: {} },
+        ],
+    });
+    requestAnimationFrame(() => ui.colorPicker.resize(230));
     return ui.colorPicker;
 }
 
-/**
- * Initializes the CodeMirror editor.
- * @returns {CodeMirror.Editor} The CodeMirror editor instance.
- */
+// ──────────────────────────────────────────────────────────────
+// CodeMirror
+// ──────────────────────────────────────────────────────────────
 export function initCodeMirror() {
     ui.codeEditor = CodeMirror(document.getElementById('codeEditor'), {
-        mode: 'lua',
-        theme: 'material-darker',
-        lineNumbers: false,
-        matchBrackets: true,
+        mode:              'lua',
+        theme:             'material-darker',
+        lineNumbers:       false,
+        matchBrackets:     true,
         autoCloseBrackets: true,
-        styleActiveLine: true,
-        lineWrapping: true,
-        indentUnit: 4,
-        tabSize: 4
+        styleActiveLine:   true,
+        lineWrapping:      true,
+        indentUnit:        4,
+        tabSize:           4,
     });
     return ui.codeEditor;
 }
 
-/**
- * Updates the connection status display.
- * @param {string} cssClass CSS class to apply for styling (e.g., 'connected', 'disconnected').
- * @param {string} message Text message to display.
- */
-export function setStatus(cssClass, message) {
-    const statusClasses = ['connecting', 'disconnected', 'agent-connected', 'device-disconnected', 'connected'];
-    ui.statusDiv.classList.remove(...statusClasses);
-    ui.statusDiv.classList.add(cssClass);
-    ui.statusDiv.textContent = message;
-}
-
-/**
- * Renders the hardware pattern buttons based on constants.
- * @param {Function} setHardwarePatternApi A function to call when a pattern button is clicked.
- */
-export function renderHardwarePatterns(setHardwarePatternApi) {
-    ui.patternGrid.innerHTML = '';
-    HARDWARE_PATTERNS.forEach(p => {
-        const button = document.createElement('button');
-        button.className = 'pattern-button';
-        button.title = p.name;
-        button.innerHTML = `<div class="pattern-preview ${p.animClass || ''}" style="${p.style || ''}"></div><span class="pattern-name">${p.name}</span>`;
-        button.onclick = () => setHardwarePatternApi(p.id);
-        ui.patternGrid.appendChild(button);
-    });
-}
-
-/**
- * Populates the cronHour and cronMinute selects for the simple cron builder.
- */
-export function populateCronTimePickers() {
-    for (let i = 0; i < 24; i++) {
-        ui.cronHour.add(new Option(pad(i), i));
-    }
-    for (let i = 0; i < 60; i += 5) {
-        ui.cronMinute.add(new Option(pad(i), i));
-    }
-    // Add a default "00" if not already there (first option)
-    // The loop already includes 00. Just set a sensible default.
-    ui.cronHour.value = 22;
-    ui.cronMinute.value = 0;
-}
-
-/**
- * Populates the hour, minute, and second dropdowns for scheduling.
- */
+// ──────────────────────────────────────────────────────────────
+// Time pickers
+// ──────────────────────────────────────────────────────────────
 export function populateTimePickers() {
     for (let i = 0; i < 60; i++) {
         if (i < 24) ui.scheduleHour.add(new Option(pad(i), i));
@@ -168,262 +235,242 @@ export function populateTimePickers() {
     }
 }
 
+export function populateCronTimePickers() {
+    for (let i = 0; i < 24; i++) ui.cronHour.add(new Option(pad(i), i));
+    for (let i = 0; i < 60; i += 5) ui.cronMinute.add(new Option(pad(i), i));
+    ui.cronHour.value   = 22;
+    ui.cronMinute.value = 0;
+}
+
+// ──────────────────────────────────────────────────────────────
+// Cron mode tabs
+// ──────────────────────────────────────────────────────────────
 function setCronMode(mode) {
     if (!ui.cronTabSimple || !ui.cronTabAdvanced) return;
-    ui.cronTabSimple.classList.toggle('active', mode === 'simple');
+    ui.cronTabSimple.classList.toggle('active',  mode === 'simple');
     ui.cronTabAdvanced.classList.toggle('active', mode === 'advanced');
-    if (ui.cronSimpleMode) ui.cronSimpleMode.style.display = mode === 'simple' ? '' : 'none';
+    if (ui.cronSimpleMode)   ui.cronSimpleMode.style.display   = mode === 'simple'   ? '' : 'none';
     if (ui.cronAdvancedMode) ui.cronAdvancedMode.style.display = mode === 'advanced' ? '' : 'none';
 }
 
+// ──────────────────────────────────────────────────────────────
+// Schedule edit mode
+// ──────────────────────────────────────────────────────────────
 export function enterScheduleEditMode(id, spec, command) {
     ui.scheduleEditId = id;
-    if (ui.scheduleSpec) ui.scheduleSpec.value = spec || '';
+    if (ui.scheduleSpec)    ui.scheduleSpec.value    = spec    || '';
     if (ui.scheduleCommand) ui.scheduleCommand.value = command || '';
-    if (ui.addScheduleBtn) {
-        ui.addScheduleBtn.innerHTML = `<span class="material-icons" style="vertical-align: middle; font-size: 18px;">edit</span>
-            Update Schedule`;
-    }
+    if (ui.addScheduleBtn)  ui.addScheduleBtn.innerHTML = `<span class="material-icons-round">edit</span> Update Schedule`;
     if (ui.scheduleEditLabel) ui.scheduleEditLabel.textContent = `Editing schedule #${id}`;
-    if (ui.scheduleEditBar) ui.scheduleEditBar.style.display = '';
+    if (ui.scheduleEditBar)   ui.scheduleEditBar.style.display = '';
     setCronMode('advanced');
+    // navigate to scheduler
+    navigateTo('sectionScheduler');
 }
 
 export function clearScheduleEditMode() {
     ui.scheduleEditId = null;
-    if (ui.addScheduleBtn) {
-        ui.addScheduleBtn.innerHTML = `<span class="material-icons" style="vertical-align: middle; font-size: 18px;">add_alarm</span>
-            Add Schedule`;
-    }
+    if (ui.addScheduleBtn) ui.addScheduleBtn.innerHTML = `<span class="material-icons-round">add_alarm</span> Add Schedule`;
     if (ui.scheduleEditBar) ui.scheduleEditBar.style.display = 'none';
 }
 
-/**
- * Updates the Lua pattern selection dropdowns AND the cron builder pattern select.
- * @param {string[]} patterns An array of pattern filenames.
- */
-export function updatePatternLists(patterns) {
-    const createOptions = (selectElem) => {
-        const currentVal = selectElem.value;
-        selectElem.innerHTML = '';
-        if (patterns && patterns.length > 0) {
-            patterns.forEach(name => selectElem.add(new Option(name, name)));
-            if (patterns.includes(currentVal)) selectElem.value = currentVal;
-            else if (patterns.length > 0) selectElem.value = patterns[0];
-        } else {
-            selectElem.innerHTML = '<option disabled>No patterns found</option>';
-        }
-    };
-    createOptions(ui.patternSelector);
-    createOptions(ui.editorPatternSelector);
-    if (ui.cronPatternSelect) createOptions(ui.cronPatternSelect);
+// ──────────────────────────────────────────────────────────────
+// Hardware pattern grid
+// ──────────────────────────────────────────────────────────────
+export function renderHardwarePatterns(setHardwarePatternApi) {
+    ui.patternGrid.innerHTML = '';
+    HARDWARE_PATTERNS.forEach(p => {
+        const btn = document.createElement('button');
+        btn.className = 'pattern-button';
+        btn.title     = p.name;
+        btn.innerHTML = `
+            <div class="pattern-preview ${p.animClass || ''}" style="${p.style || ''}"></div>
+            <span class="pattern-name">${p.name}</span>`;
+        btn.onclick = () => setHardwarePatternApi(p.id);
+        ui.patternGrid.appendChild(btn);
+    });
 }
 
-/**
- * Updates the list of agent-side schedules with styled card rendering.
- * @param {Object} schedules An object mapping schedule IDs to schedule entries.
- * @param {Function} removeScheduleApi A function to call when a remove button is clicked.
- */
+// ──────────────────────────────────────────────────────────────
+// Pattern list dropdowns + cron pattern select
+// ──────────────────────────────────────────────────────────────
+export function updatePatternLists(patterns) {
+    const fill = (sel) => {
+        const cur = sel.value;
+        sel.innerHTML = '';
+        if (patterns && patterns.length > 0) {
+            patterns.forEach(name => sel.add(new Option(name, name)));
+            sel.value = patterns.includes(cur) ? cur : patterns[0];
+        } else {
+            sel.innerHTML = '<option disabled>No patterns found</option>';
+        }
+    };
+    fill(ui.patternSelector);
+    fill(ui.editorPatternSelector);
+    if (ui.cronPatternSelect) fill(ui.cronPatternSelect);
+}
+
+// ──────────────────────────────────────────────────────────────
+// Schedule list
+// ──────────────────────────────────────────────────────────────
 export function updateScheduleList(schedules) {
     ui.scheduleList.innerHTML = '';
     const ids = schedules ? Object.keys(schedules) : [];
+
     if (ui.scheduleEditId && !ids.includes(String(ui.scheduleEditId))) {
         clearScheduleEditMode();
     }
-    if (ids.length > 0) {
-        ids.forEach(id => {
-            const item = schedules[id];
-            const li = document.createElement('li');
-            li.className = 'schedule-item';
-            if (!item.enabled) li.classList.add('schedule-paused');
 
-            const info = document.createElement('div');
-            info.className = 'schedule-info';
-
-            const line = document.createElement('div');
-            line.className = 'schedule-line';
-
-            const spec = document.createElement('span');
-            spec.className = 'schedule-spec';
-            spec.textContent = item.spec;
-
-            const command = document.createElement('span');
-            command.className = 'schedule-command';
-            command.textContent = item.command;
-
-            line.append(spec, command);
-
-            const meta = document.createElement('div');
-            meta.className = 'schedule-meta';
-
-            const state = document.createElement('span');
-            state.className = `schedule-state${item.enabled ? '' : ' paused'}`;
-            state.textContent = item.enabled ? 'Active' : 'Paused';
-
-            const next = document.createElement('span');
-            next.className = 'schedule-time';
-            next.textContent = item.enabled && item.next_run ? `Next: ${formatRunTime(item.next_run)}` : 'Next: —';
-
-            const last = document.createElement('span');
-            last.className = 'schedule-time';
-            last.textContent = item.last_run ? `Last: ${formatRunTime(item.last_run)}` : 'Last: —';
-
-            meta.append(state, next, last);
-            info.append(line, meta);
-
-            const actions = document.createElement('div');
-            actions.className = 'schedule-actions';
-
-            const toggleBtn = document.createElement('button');
-            toggleBtn.className = 'schedule-btn schedule-toggle-btn';
-            toggleBtn.dataset.id = id;
-            toggleBtn.dataset.enabled = item.enabled ? 'true' : 'false';
-            toggleBtn.title = item.enabled ? 'Pause schedule' : 'Resume schedule';
-            toggleBtn.innerHTML = `<span class="material-icons" style="font-size:16px; vertical-align:middle;">${item.enabled ? 'pause' : 'play_arrow'}</span>`;
-
-            const runBtn = document.createElement('button');
-            runBtn.className = 'schedule-btn schedule-run-btn';
-            runBtn.dataset.id = id;
-            runBtn.title = 'Run now';
-            runBtn.innerHTML = `<span class="material-icons" style="font-size:16px; vertical-align:middle;">play_circle</span>`;
-
-            const editBtn = document.createElement('button');
-            editBtn.className = 'schedule-btn schedule-edit-btn';
-            editBtn.dataset.id = id;
-            editBtn.dataset.spec = item.spec;
-            editBtn.dataset.command = item.command;
-            editBtn.title = 'Edit schedule';
-            editBtn.innerHTML = `<span class="material-icons" style="font-size:16px; vertical-align:middle;">edit</span>`;
-
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'schedule-btn remove-schedule-btn';
-            removeBtn.dataset.id = id;
-            removeBtn.title = 'Remove schedule';
-            removeBtn.innerHTML = `<span class="material-icons" style="font-size:16px; vertical-align:middle;">delete</span>`;
-
-            actions.append(toggleBtn, runBtn, editBtn, removeBtn);
-
-            li.append(info, actions);
-            ui.scheduleList.appendChild(li);
-        });
-    } else {
+    if (ids.length === 0) {
         ui.scheduleList.innerHTML = '<li class="schedule-empty">No schedules defined.</li>';
+        return;
     }
+
+    ids.forEach(id => {
+        const item = schedules[id];
+        const li   = document.createElement('li');
+        li.className = 'schedule-item';
+        if (!item.enabled) li.classList.add('schedule-paused');
+
+        const info = document.createElement('div');
+        info.className = 'schedule-info';
+
+        const commandType = getCommandType(item.command);
+        const top = document.createElement('div');
+        top.className = 'schedule-top';
+
+        const command = document.createElement('div');
+        command.className = 'schedule-command';
+        command.textContent = item.command;
+
+        const type = document.createElement('span');
+        type.className = 'schedule-type';
+        type.textContent = commandType;
+
+        const toggleLabel = document.createElement('label');
+        toggleLabel.className = 'schedule-toggle';
+        toggleLabel.title = item.enabled ? 'Disable schedule' : 'Enable schedule';
+        toggleLabel.innerHTML = `
+            <input class="schedule-toggle-input" type="checkbox" aria-label="Schedule enabled">
+            <span class="schedule-toggle-slider"></span>`;
+        const toggleInput = toggleLabel.querySelector('input');
+        toggleInput.checked = !!item.enabled;
+        toggleInput.dataset.id = id;
+
+        top.append(command, type, toggleLabel);
+
+        const middle = document.createElement('div');
+        middle.className = 'schedule-middle';
+        middle.innerHTML = `
+            <span class="schedule-cron">
+                <span class="material-icons-round">schedule</span>
+                ${item.spec}
+            </span>
+            <span class="schedule-human">Runs automatically</span>`;
+
+        const bottom = document.createElement('div');
+        bottom.className = 'schedule-bottom';
+
+        const meta = document.createElement('div');
+        meta.className = 'schedule-meta';
+        meta.innerHTML = `
+            <span class="schedule-meta-item">
+                <span class="material-icons-round">event</span>
+                ${item.enabled && item.next_run ? `Next: ${formatRunTime(item.next_run)}` : 'Next: —'}
+            </span>
+            <span class="schedule-meta-item">
+                <span class="material-icons-round">history</span>
+                ${item.last_run ? `Last: ${formatRunTime(item.last_run)}` : 'Last: —'}
+            </span>`;
+
+        const actions = document.createElement('div');
+        actions.className = 'schedule-actions';
+
+        const makeBtn = (extraClass, icon, title, dataAttrs) => {
+            const b = document.createElement('button');
+            b.className = `schedule-btn ${extraClass}`;
+            b.title = title;
+            b.dataset.id = id;
+            Object.assign(b.dataset, dataAttrs || {});
+            b.innerHTML = `<span class="material-icons-round">${icon}</span>`;
+            return b;
+        };
+
+        const runBtn  = makeBtn('schedule-run-btn',  'play_circle', 'Run now');
+        const editBtn = makeBtn('schedule-edit-btn', 'edit',        'Edit schedule',
+            { spec: item.spec, command: item.command });
+        const delBtn  = makeBtn('remove-schedule-btn', 'delete', 'Remove schedule');
+
+        actions.append(runBtn, editBtn, delBtn);
+        bottom.append(meta, actions);
+        info.append(top, middle, bottom);
+        li.append(info);
+        ui.scheduleList.appendChild(li);
+    });
 }
 
 function formatRunTime(value) {
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleString();
+    return isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
-/**
- * Initializes dark mode based on local storage and sets the toggle button icon.
- */
-export function initDarkMode() {
-    if (localStorage.getItem('darkMode') === 'true') {
-        document.body.classList.add('dark-mode');
-    }
-    const isDark = document.body.classList.contains('dark-mode');
-    document.querySelector('#darkModeToggle .material-icons').textContent = isDark ? 'light_mode' : 'dark_mode';
+function getCommandType(command) {
+    const cmd = String(command || '').trim().toLowerCase();
+    if (cmd.startsWith('power on')) return 'Power On';
+    if (cmd.startsWith('power off')) return 'Power Off';
+    if (cmd.startsWith('pattern')) return 'Pattern';
+    if (cmd.startsWith('lua')) return 'Lua';
+    return 'Command';
 }
 
-/**
- * Renders the custom color preset buttons AND the Add button at the end.
- * Includes Touch Support (Long Press to Delete).
- * @param {string[]} presets Array of hex color strings.
- * @param {Function} onApply Callback when a preset is clicked.
- * @param {Function} onDelete Callback when a preset is right-clicked or long-pressed.
- * @param {Function} onAdd Callback when the + button is clicked.
- */
-
+// ──────────────────────────────────────────────────────────────
+// Color presets
+// ──────────────────────────────────────────────────────────────
 export function renderPresets(presets, onApply, onDelete, onAdd) {
     ui.customPresetsContainer.innerHTML = '';
 
-    // 1. Render Saved Presets
     if (presets) {
         presets.forEach((hex, index) => {
-            const button = document.createElement('button');
-            button.style.backgroundColor = hex;
-            button.title = `${hex}`;
-            button.dataset.color = hex;
+            const btn = document.createElement('button');
+            btn.className           = 'preset-swatch';
+            btn.style.backgroundColor = hex;
+            btn.title               = hex;
+            btn.dataset.color       = hex;
 
-            // Add border to light colors if needed
-            // const isLight = (hex.toLowerCase() === '#ffffff') || (parseInt(hex.substring(1), 16) > 0xEEEEEE);
-            // if (isLight) {
-            //    button.style.border = '1px solid #ccc';
-            // }
+            let pressTimer    = null;
+            let isLongPress   = false;
 
-            // --- Interaction Logic (Mouse & Touch) ---
-            let pressTimer = null;
-            let isLongPress = false;
-
-            // 1. Right Click (Desktop)
-            button.addEventListener('contextmenu', (e) => {
+            btn.addEventListener('contextmenu', e => {
                 e.preventDefault();
-                // Prevent double firing if the browser maps long-press to contextmenu automatically
-                if (!isLongPress) {
-                    if (confirm(`Delete preset ${hex}?`)) {
-                        onDelete(index);
-                    }
-                }
+                if (!isLongPress && confirm(`Delete preset ${hex}?`)) onDelete(index);
             });
 
-            // 2. Touch Start (Start Timer)
-            button.addEventListener('touchstart', (e) => {
+            btn.addEventListener('touchstart', () => {
                 isLongPress = false;
-                pressTimer = setTimeout(() => {
+                pressTimer  = setTimeout(() => {
                     isLongPress = true;
-                    // Haptic feedback if supported
                     if (navigator.vibrate) navigator.vibrate(50);
-                    if (confirm(`Delete preset ${hex}?`)) {
-                        onDelete(index);
-                    }
-                }, 600); // 600ms threshold for long press
+                    if (confirm(`Delete preset ${hex}?`)) onDelete(index);
+                }, 600);
             }, { passive: true });
 
-            // 3. Touch End / Move (Cancel Timer)
-            const cancelPress = () => {
-                if (pressTimer) clearTimeout(pressTimer);
-            };
-            button.addEventListener('touchend', cancelPress);
-            button.addEventListener('touchmove', cancelPress); // Cancel if user tries to scroll
+            const cancelPress = () => { if (pressTimer) clearTimeout(pressTimer); };
+            btn.addEventListener('touchend',  cancelPress);
+            btn.addEventListener('touchmove', cancelPress);
 
-            // 4. Click / Tap (Apply Color)
-            button.addEventListener('click', (e) => {
-                // If we just triggered a long press delete, ignore this click
-                if (isLongPress) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return;
-                }
+            btn.addEventListener('click', e => {
+                if (isLongPress) { e.preventDefault(); e.stopPropagation(); return; }
                 onApply(hex);
             });
 
-            ui.customPresetsContainer.appendChild(button);
+            ui.customPresetsContainer.appendChild(btn);
         });
     }
 
-    // 2. Render the "+" Button at the end
     const addBtn = document.createElement('button');
-    addBtn.innerHTML = '<span class="material-icons" style="font-size: 24px; vertical-align: middle;">add</span>';
-    addBtn.title = "Save current color";
-    addBtn.style.backgroundColor = "#eee"; // Light gray background
-    addBtn.style.color = "#555";
-    addBtn.style.border = "1px dashed #aaa"; // Dashed border to distinguish it
-    addBtn.style.display = "flex";
-    addBtn.style.alignItems = "center";
-    addBtn.style.justifyContent = "center";
-
-    // Standard click for Add button is sufficient
+    addBtn.className = 'preset-add-btn';
+    addBtn.title     = 'Save current color';
+    addBtn.innerHTML = '<span class="material-icons-round">add</span>';
     addBtn.addEventListener('click', onAdd);
-
-    // Dark mode style adjustment
-    if (document.body.classList.contains('dark-mode')) {
-        addBtn.style.backgroundColor = "#444";
-        addBtn.style.color = "#ccc";
-        addBtn.style.borderColor = "#666";
-    }
-
     ui.customPresetsContainer.appendChild(addBtn);
 }
