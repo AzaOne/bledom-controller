@@ -82,7 +82,7 @@ func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.Dir(s.webFilesDir)))
+	mux.Handle("/", newStaticHandler(s.webFilesDir))
 	mux.HandleFunc("/ws", s.handleWebSocket)
 	if enablePprof {
 		registerPprof(mux)
