@@ -77,10 +77,17 @@ func (h *staticHandler) rewriteHTMLAssets(content []byte, basePath string) []byt
 	baseDir := path.Dir(basePath)
 	return htmlAssetRefRe.ReplaceAllFunc(content, func(match []byte) []byte {
 		sub := htmlAssetRefRe.FindSubmatch(match)
-		if len(sub) < 4 {
+		if len(sub) < 3 {
 			return match
 		}
-		ref := string(sub[3])
+		refBytes := sub[2]
+		if len(refBytes) == 0 && len(sub) > 3 {
+			refBytes = sub[3]
+		}
+		if len(refBytes) == 0 {
+			return match
+		}
+		ref := string(refBytes)
 		if strings.Contains(ref, "?") || strings.Contains(ref, "#") {
 			return match
 		}
@@ -98,10 +105,17 @@ func (h *staticHandler) rewriteJSImportSpecifiers(content []byte, basePath strin
 	baseDir := path.Dir(basePath)
 	out := jsImportRe.ReplaceAllFunc(content, func(match []byte) []byte {
 		sub := jsImportRe.FindSubmatch(match)
-		if len(sub) < 3 {
+		if len(sub) < 2 {
 			return match
 		}
-		ref := string(sub[2])
+		refBytes := sub[1]
+		if len(refBytes) == 0 && len(sub) > 2 {
+			refBytes = sub[2]
+		}
+		if len(refBytes) == 0 {
+			return match
+		}
+		ref := string(refBytes)
 		updated := h.versionedJSImport(ref, baseDir)
 		if updated == ref {
 			return match
@@ -111,10 +125,17 @@ func (h *staticHandler) rewriteJSImportSpecifiers(content []byte, basePath strin
 
 	out = jsDynamicImportRe.ReplaceAllFunc(out, func(match []byte) []byte {
 		sub := jsDynamicImportRe.FindSubmatch(match)
-		if len(sub) < 3 {
+		if len(sub) < 2 {
 			return match
 		}
-		ref := string(sub[2])
+		refBytes := sub[1]
+		if len(refBytes) == 0 && len(sub) > 2 {
+			refBytes = sub[2]
+		}
+		if len(refBytes) == 0 {
+			return match
+		}
+		ref := string(refBytes)
 		updated := h.versionedJSImport(ref, baseDir)
 		if updated == ref {
 			return match
@@ -192,6 +213,6 @@ func cleanURLPath(p string) string {
 	return path.Clean("/" + p)
 }
 
-var htmlAssetRefRe = regexp.MustCompile(`(?i)(href|src)=(["'])(\.?/[^"'?#]+\.(?:css|js))\2`)
-var jsImportRe = regexp.MustCompile(`(?m)\bimport\s+(?:[^;]*?\s+from\s+)?(['"])(\.?/[^'"?#]+\.js)\1`)
-var jsDynamicImportRe = regexp.MustCompile(`(?m)\bimport\(\s*(['"])(\.?/[^'"?#]+\.js)\1\s*\)`)
+var htmlAssetRefRe = regexp.MustCompile(`(?i)(href|src)=(?:"(\.?/[^"?#]+\.(?:css|js))"|'(\.?/[^'?#]+\.(?:css|js))')`)
+var jsImportRe = regexp.MustCompile(`(?m)\bimport\s+(?:[^;]*?\s+from\s+)?(?:"(\.?/[^"?#]+\.js)"|'(\.?/[^'?#]+\.js)')`)
+var jsDynamicImportRe = regexp.MustCompile(`(?m)\bimport\(\s*(?:"(\.?/[^"?#]+\.js)"|'(\.?/[^'?#]+\.js)')\s*\)`)
