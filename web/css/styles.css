@@ -36,6 +36,8 @@
     --radius-xs:      5px;
     --transition:     0.2s ease;
     --form-gap:       12px;
+    --btn-min-width:  120px;
+    --section-btn-width: 140px;
 }
 
 /* Light mode overrides */
@@ -436,6 +438,7 @@ ul { list-style: none; }
     cursor: pointer;
     transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition), background var(--transition), border-color var(--transition), color var(--transition);
     white-space: nowrap;
+    min-width: var(--btn-min-width);
 }
 
 .btn:hover { transform: translateY(-1px); }
@@ -466,8 +469,8 @@ ul { list-style: none; }
 }
 .btn-outline:hover { background: rgba(33,150,243,0.08); }
 
-.btn-full { width: 100%; justify-content: center; }
-.btn-sm   { padding: 8px 14px; font-size: 12px; }
+.btn-full { width: 100%; min-width: 100%; justify-content: center; }
+.btn-sm   { padding: 8px 14px; font-size: 12px; min-width: auto; }
 
 /* ── Button rows ─────────────────────────────────────── */
 .button-row {
@@ -1358,6 +1361,12 @@ input[type="range"]::-moz-range-thumb {
 .pattern-editor-card .button-row .btn {
     min-height: 36px;
     padding: 10px 16px;
+}
+
+.schedule-form-card .button-row .btn,
+.device-schedule-card .button-row .btn,
+.device-rgb-card .button-row .btn {
+    min-width: var(--section-btn-width);
 }
 
 /* ── Docs ────────────────────────────────────────────── */
