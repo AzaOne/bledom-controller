@@ -125,6 +125,8 @@ func (a *Agent) Run() {
 		}
 	}()
 
+	a.publishInitialState()
+
 	// Orchestrator Central Command Loop
 	log.Println("[Agent] Orchestrator ready.")
 	for {
@@ -439,6 +441,27 @@ func (a *Agent) syncState() {
 		},
 	})
 }
+
+func (a *Agent) publishInitialState() {
+	if a.eventBus == nil || a.state == nil {
+		return
+	}
+	st := a.state.Clone()
+	hex := fmt.Sprintf("#%02X%02X%02X", st.ColorR, st.ColorG, st.ColorB)
+	a.eventBus.Publish(core.Event{
+		Type: core.StateChangedEvent,
+		Payload: map[string]interface{}{
+			"isOn":       st.Power,
+			"r":          st.ColorR,
+			"g":          st.ColorG,
+			"b":          st.ColorB,
+			"hex":        hex,
+			"brightness": st.Brightness,
+			"speed":      st.Speed,
+		},
+	})
+}
+
 
 // Shutdown gracefully stops all agent components and wait groups.
 func (a *Agent) Shutdown() {

@@ -18,7 +18,14 @@ type State struct {
 
 // NewState creates a new State instance.
 func NewState() *State {
-	return &State{}
+	return &State{
+		Power:      true,
+		ColorR:     0,
+		ColorG:     255,
+		ColorB:     0,
+		Brightness: 100,
+		Speed:      50,
+	}
 }
 
 // Clone returns a snapshot of the current state for safe reading.

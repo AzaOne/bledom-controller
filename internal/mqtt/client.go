@@ -267,6 +267,7 @@ func (c *Client) onConnect(client mqtt.Client) {
 		if c.cfg.MQTT.HADiscoveryEnabled {
 			c.PublishHADiscovery()
 		}
+		c.publishStateSnapshot()
 	}()
 }
 
@@ -347,6 +348,26 @@ func (c *Client) PublishHADiscovery() {
 	jsonPayload, _ := json.Marshal(payload)
 	c.client.Publish(discoveryTopic, 0, true, jsonPayload)
 	log.Printf("[MQTT] HA Discovery sent to %s", discoveryTopic)
+}
+
+func (c *Client) publishStateSnapshot() {
+	if c.state == nil {
+		return
+	}
+	st := c.state.Clone()
+	powerStr := "OFF"
+	if st.Power {
+		powerStr = "ON"
+	}
+	c.Publish("power/state", powerStr, true)
+	c.Publish("brightness/state", st.Brightness, true)
+	c.Publish("color/state", fmt.Sprintf("%d,%d,%d", st.ColorR, st.ColorG, st.ColorB), true)
+	c.Publish("color/state/hex", fmt.Sprintf("#%02X%02X%02X", st.ColorR, st.ColorG, st.ColorB), true)
+	if st.RunningPattern == "" {
+		c.Publish("pattern/state", "IDLE", true)
+	} else {
+		c.Publish("pattern/state", st.RunningPattern, true)
+	}
 }
 
 // --- Handlers ---

@@ -83,10 +83,10 @@ func NewController(ctx context.Context, eb *core.EventBus, deviceNames []string,
 
 		// Initial state
 		state: State{
-			IsOn:       false,
-			R:          255,
+			IsOn:       true,
+			R:          0,
 			G:          255,
-			B:          255,
+			B:          0,
 			Brightness: 100,
 			Speed:      50,
 		},
