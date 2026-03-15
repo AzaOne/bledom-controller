@@ -47,7 +47,7 @@
                         <button class="nav-item active" data-section="sectionColor" role="tab" aria-selected="true"
                             title="Power & Color">
                         <span class="material-icons-round">palette</span>
-                        <span class="nav-label">Power &amp; Color</span>
+                        <span class="nav-label">Power &amp; Color Control</span>
                         </button>
                     </li>
                     <li>
@@ -61,33 +61,39 @@
                         <button class="nav-item" data-section="sectionScheduler" role="tab" aria-selected="false"
                             title="Scheduler">
                         <span class="material-icons-round">schedule</span>
-                        <span class="nav-label">Schedule</span>
+                        <span class="nav-label">Agent Schedules</span>
                         </button>
                     </li>
                     <li>
                         <button class="nav-item" data-section="sectionDocs" role="tab" aria-selected="false"
                             title="Documentation">
                         <span class="material-icons-round">menu_book</span>
-                        <span class="nav-label">Docs</span>
+                        <span class="nav-label">Docs &amp; API</span>
                         </button>
                     </li>
                     <li>
                         <button class="nav-item" data-section="sectionEffects" role="tab" aria-selected="false"
                             title="Effects">
                         <span class="material-icons-round">auto_awesome</span>
-                        <span class="nav-label">Effects</span>
+                        <span class="nav-label">Built-in Effects</span>
                         </button>
                     </li>
                     <li>
                         <button class="nav-item" data-section="sectionAdvanced" role="tab" aria-selected="false"
                             title="Advanced Settings">
                         <span class="material-icons-round">settings</span>
-                        <span class="nav-label">Advanced</span>
+                        <span class="nav-label">Advanced Settings</span>
                         </button>
                     </li>
                 </ul>
             </nav>
             <main id="content" role="main">
+                <div id="pullToRefresh" aria-hidden="true">
+                    <div class="ptr-indicator">
+                        <span class="material-icons-round ptr-icon">arrow_downward</span>
+                        <span class="ptr-text">Pull to refresh</span>
+                    </div>
+                </div>
                 <div id="offlineOverlay">
                     <span class="material-icons-round overlay-icon">bluetooth_disabled</span>
                     <p>Connecting to agent…</p>
@@ -95,7 +101,7 @@
                 </div>
                 <section id="sectionColor" class="panel active" role="tabpanel">
                     <div class="panel-header">
-                        <h2><span class="material-icons-round">palette</span> Power &amp; Color</h2>
+                        <h2><span class="material-icons-round">palette</span> Power &amp; Color Control</h2>
                     </div>
                     <div class="panel-body">
                         <div class="panel-grid">
@@ -114,7 +120,7 @@
                                     </div>
                                 </div>
                                 <div class="card" style="flex: 1;">
-                                    <h3 class="card-title"><span class="material-icons-round">colorize</span> Color Selection</h3>
+                                    <h3 class="card-title"><span class="material-icons-round">colorize</span> Color Picker</h3>
                                     <div id="colorPickerContainer" style="display: flex; justify-content: center; align-items: center; padding: 10px 0;"></div>
                                 </div>
                             </div>
@@ -152,7 +158,7 @@
                     </div>
                     <div class="panel-body">
                         <div class="card pattern-run-card">
-                            <h3 class="card-title"><span class="material-icons-round">play_circle</span> Run Pattern</h3>
+                            <h3 class="card-title"><span class="material-icons-round">play_circle</span> Run Lua Pattern</h3>
                             <div class="status-row">
                                 <span class="field-label">Status:</span>
                                 <span id="patternStatus" class="pattern-status-badge">Idle</span>
@@ -173,7 +179,7 @@
                             </div>
                         </div>
                         <div class="card pattern-editor-card">
-                            <h3 class="card-title"><span class="material-icons-round">edit</span> Pattern Editor</h3>
+                            <h3 class="card-title"><span class="material-icons-round">edit</span> Edit Pattern</h3>
                             <div class="editor-top-row">
                                 <div class="field-group editor-select">
                                     <label for="editorPatternSelector" class="field-label">Load Pattern</label>
@@ -206,11 +212,11 @@
                 </section>
                 <section id="sectionScheduler" class="panel" role="tabpanel">
                     <div class="panel-header">
-                        <h2><span class="material-icons-round">schedule</span> Scheduler (Agent)</h2>
+                        <h2><span class="material-icons-round">schedule</span> Agent Schedules</h2>
                     </div>
                     <div class="panel-body">
                         <div class="card schedule-form-card">
-                            <h3 class="card-title"><span class="material-icons-round">add_alarm</span> Add / Edit Schedule</h3>
+                            <h3 class="card-title"><span class="material-icons-round">add_alarm</span> Create / Edit Schedule</h3>
                             <div class="cron-mode-tabs">
                                 <button class="cron-tab active" id="cronTabSimple" data-mode="simple">Simple</button>
                                 <button class="cron-tab" id="cronTabAdvanced" data-mode="advanced">Advanced</button>
@@ -273,7 +279,7 @@
                         </div>
                         <div class="card">
                             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding-bottom: 0; margin-bottom: 4px;">
-                                <h3 class="card-title" style="border: none; padding: 0; margin: 0;"><span class="material-icons-round">list</span> Current Schedules</h3>
+                                <h3 class="card-title" style="border: none; padding: 0; margin: 0;"><span class="material-icons-round">list</span> Active Schedules</h3>
                                 <div class="bulk-action-row">
                                     <button id="pauseAllSchedulesBtn" class="btn btn-outline btn-sm">Pause All</button>
                                     <button id="resumeAllSchedulesBtn" class="btn btn-outline btn-sm">Resume All</button>
@@ -287,11 +293,11 @@
                 </section>
                 <section id="sectionDocs" class="panel" role="tabpanel">
                     <div class="panel-header">
-                        <h2><span class="material-icons-round">menu_book</span> Documentation</h2>
+                        <h2><span class="material-icons-round">menu_book</span> Docs &amp; API</h2>
                     </div>
                     <div class="panel-body docs-body panel-grid">
                         <div class="card">
-                            <h3 class="card-title"><span class="material-icons-round">api</span> Lua Pattern API</h3>
+                            <h3 class="card-title"><span class="material-icons-round">api</span> Lua API</h3>
                             <p>Create custom animations by writing Lua scripts. The agent exposes these global functions:</p>
                             <ul class="doc-list">
                                 <li><code>set_power(boolean)</code> — Turns the LEDs on or off. Example: <code>set_power(true)</code></li>
@@ -303,7 +309,7 @@
                             </ul>
                         </div>
                         <div class="card">
-                            <h3 class="card-title"><span class="material-icons-round">animation</span> High-Level Effects</h3>
+                            <h3 class="card-title"><span class="material-icons-round">animation</span> Lua Effects</h3>
                             <p>These functions perform complex animations and block until complete or cancelled.</p>
                             <ul class="doc-list">
                                 <li><code>breathe(duration_ms)</code> — Smooth 1%→100% brightness pulse. Example: <code>set_color(0,255,255); breathe(4000)</code></li>
@@ -313,7 +319,7 @@
                             </ul>
                         </div>
                         <div class="card" style="grid-column: 1 / -1;">
-                            <h3 class="card-title"><span class="material-icons-round">schedule</span> Scheduler</h3>
+                            <h3 class="card-title"><span class="material-icons-round">schedule</span> Cron Scheduler</h3>
                             <p>Uses standard cron syntax to automate commands.</p>
                             <ul class="doc-list">
                                 <li><strong>Syntax:</strong> <code>MINUTE HOUR DOM MONTH DOW</code>.&nbsp; Example: <code>0 22 * * 1-5</code> = 10 PM Mon–Fri. (<a href="https://crontab.guru/" target="_blank" rel="noopener">crontab.guru</a>)</li>
@@ -331,30 +337,30 @@
                 </section>
                 <section id="sectionEffects" class="panel" role="tabpanel">
                     <div class="panel-header">
-                        <h2><span class="material-icons-round">auto_awesome</span> Hardware Effects</h2>
+                        <h2><span class="material-icons-round">auto_awesome</span> Built-in Effects</h2>
                     </div>
                     <div class="panel-body">
                         <div class="card">
-                            <h3 class="card-title"><span class="material-icons-round">speed</span> Effect Speed</h3>
+                            <h3 class="card-title"><span class="material-icons-round">speed</span> Speed</h3>
                             <div class="slider-row">
                                 <input type="range" id="speedSlider" min="0" max="100" value="50" aria-label="Effect speed">
                                 <span id="speedValue" class="slider-val">50%</span>
                             </div>
                         </div>
                         <div class="card">
-                            <h3 class="card-title"><span class="material-icons-round">category</span> Patterns</h3>
+                            <h3 class="card-title"><span class="material-icons-round">category</span> Built-in Patterns</h3>
                             <div id="patternGrid" class="hw-pattern-grid"></div>
                         </div>
                     </div>
                 </section>
                 <section id="sectionAdvanced" class="panel" role="tabpanel">
                     <div class="panel-header">
-                        <h2><span class="material-icons-round">settings</span> Advanced Device Settings</h2>
+                        <h2><span class="material-icons-round">settings</span> Advanced Settings</h2>
                     </div>
                     <div class="panel-body">
                         <div class="panel-grid">
                             <div class="card advanced-card device-schedule-card">
-                                <h3 class="card-title"><span class="material-icons-round">memory</span> On-Device Scheduling</h3>
+                                <h3 class="card-title"><span class="material-icons-round">memory</span> On-Device Schedule</h3>
                                 <div class="button-row" style="margin-bottom: 8px;">
                                     <button id="syncTimeBtn" class="btn btn-outline">
                                     <span class="material-icons-round">sync</span> Sync Time
@@ -400,7 +406,7 @@
                                 </div>
                             </div>
                             <div class="card advanced-card device-rgb-card">
-                                <h3 class="card-title"><span class="material-icons-round">cable</span> RGB Wire Order</h3>
+                                <h3 class="card-title"><span class="material-icons-round">cable</span> RGB Channel Order</h3>
                                 <div class="wire-order-grid advanced-panel">
                                     <div class="field-group">
                                         <label for="wire1" class="field-label">1st Wire</label>

@@ -311,6 +311,54 @@ ul { list-style: none; }
     overflow: hidden;
 }
 
+/* ── Pull to refresh ─────────────────────────────────── */
+#pullToRefresh {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-60px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    z-index: 40;
+}
+
+#pullToRefresh .ptr-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 12px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+}
+
+#pullToRefresh .ptr-icon {
+    font-size: 16px !important;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+#pullToRefresh.ready .ptr-icon {
+    transform: rotate(180deg);
+    color: var(--accent-color);
+}
+
+#pullToRefresh.refreshing .ptr-icon {
+    animation: ptr-spin 0.9s linear infinite;
+    color: var(--primary-color);
+}
+
+@keyframes ptr-spin {
+    to { transform: rotate(360deg); }
+}
+
 /* ── Offline overlay ─────────────────────────────────── */
 #offlineOverlay {
     position: absolute;
@@ -865,13 +913,6 @@ input[type="range"]::-moz-range-thumb {
 
 .schedule-form-card .button-row {
     margin-top: 4px;
-}
-
-.schedule-form-card .card-title {
-    text-transform: none;
-    letter-spacing: 0.02em;
-    font-size: 14px;
-    color: var(--text);
 }
 
 .schedule-days-group .field-label {

@@ -19,6 +19,8 @@ import { initEventListeners } from './event-listeners.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     let socket;
+    let manualRefresh = false;
+    let manualRefreshResolver = null;
 
     initCodeMirror();
     initColorPicker();
@@ -29,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHardwarePatterns(deviceAPI.setHardwarePattern);
     populateTimePickers();
     populateCronTimePickers();
+    initPullToRefresh();
 
     function connect() {
         const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -39,10 +42,19 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.onopen = () => {
             console.log('WebSocket connection established');
             setStatus('agent-connected', 'Agent Connected');
+            if (manualRefreshResolver) {
+                manualRefreshResolver();
+                manualRefreshResolver = null;
+            }
+            manualRefresh = false;
         };
 
         socket.onclose = () => {
             console.log('WebSocket connection closed. Retrying…');
+            if (manualRefresh) {
+                setTimeout(connect, 150);
+                return;
+            }
             setStatus('disconnected', 'Agent Disconnected');
             showControls(false);
             setTimeout(connect, 3000);
@@ -77,7 +89,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         ui.speedSlider.value = sVal;
                         ui.speedValue.textContent = `${sVal}%`;
                     }
-                    updatePowerVisual(state.isOn);
+                    if (state.isOn !== undefined) {
+                        updatePowerVisual(state.isOn);
+                    }
                     break;
                 }
 
@@ -115,6 +129,127 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus('disconnected', 'Error');
             socket.close();
         };
+    }
+
+    function refreshData() {
+        if (manualRefresh) return Promise.resolve();
+        manualRefresh = true;
+        setStatus('connecting', 'Refreshing…');
+
+        return new Promise((resolve) => {
+            manualRefreshResolver = resolve;
+
+            if (!socket || socket.readyState === WebSocket.CLOSED) {
+                connect();
+            } else {
+                try {
+                    socket.close(4000, 'refresh');
+                } catch (err) {
+                    connect();
+                }
+            }
+
+            setTimeout(() => {
+                if (manualRefreshResolver) {
+                    manualRefreshResolver();
+                    manualRefreshResolver = null;
+                }
+                manualRefresh = false;
+            }, 3500);
+        });
+    }
+
+    function initPullToRefresh() {
+        const content = document.getElementById('content');
+        const pullEl = document.getElementById('pullToRefresh');
+        if (!content || !pullEl) return;
+
+        const icon = pullEl.querySelector('.ptr-icon');
+        const text = pullEl.querySelector('.ptr-text');
+        const overlay = document.getElementById('offlineOverlay');
+
+        const height = 60;
+        const threshold = 80;
+        const maxPull = 140;
+
+        let pulling = false;
+        let startY = 0;
+        let pullDistance = 0;
+
+        const resetIndicator = () => {
+            pullEl.classList.remove('active', 'ready', 'refreshing');
+            pullEl.style.transform = `translateY(-${height}px)`;
+            pullEl.style.opacity = '0';
+            if (icon) icon.textContent = 'arrow_downward';
+            if (text) text.textContent = 'Pull to refresh';
+        };
+
+        const setIndicator = (distance) => {
+            const offset = Math.min(distance, maxPull);
+            const visible = Math.min(offset, height);
+            pullEl.style.transform = `translateY(${visible - height}px)`;
+            pullEl.style.opacity = String(Math.min(1, visible / height));
+        };
+
+        const canStartPull = (evt) => {
+            if (manualRefresh) return false;
+            if (overlay && !overlay.classList.contains('hidden')) return false;
+            if (content.scrollTop > 0) return false;
+            if (!evt.touches || evt.touches.length !== 1) return false;
+            if (evt.target.closest('.CodeMirror')) return false;
+            return true;
+        };
+
+        const triggerRefresh = () => {
+            pullEl.classList.add('refreshing');
+            pullEl.classList.remove('ready');
+            pullEl.style.transform = 'translateY(0)';
+            pullEl.style.opacity = '1';
+            if (icon) icon.textContent = 'autorenew';
+            if (text) text.textContent = 'Refreshing…';
+
+            refreshData().finally(() => {
+                resetIndicator();
+            });
+        };
+
+        content.addEventListener('touchstart', (evt) => {
+            if (!canStartPull(evt)) return;
+            pulling = true;
+            startY = evt.touches[0].clientY;
+            pullDistance = 0;
+        }, { passive: true });
+
+        content.addEventListener('touchmove', (evt) => {
+            if (!pulling) return;
+            const currentY = evt.touches[0].clientY;
+            pullDistance = Math.max(0, currentY - startY);
+            if (pullDistance <= 0) return;
+
+            evt.preventDefault();
+            pullEl.classList.add('active');
+            setIndicator(pullDistance);
+
+            const isReady = pullDistance >= threshold;
+            pullEl.classList.toggle('ready', isReady);
+            if (text) text.textContent = isReady ? 'Release to refresh' : 'Pull to refresh';
+        }, { passive: false });
+
+        const finishPull = () => {
+            if (!pulling) return;
+            pulling = false;
+            if (pullDistance >= threshold) {
+                triggerRefresh();
+            } else {
+                resetIndicator();
+            }
+            pullDistance = 0;
+        };
+
+        content.addEventListener('touchend', finishPull);
+        content.addEventListener('touchcancel', finishPull);
+
+        resetIndicator();
     }
 
     function updatePowerVisual(isOn) {
