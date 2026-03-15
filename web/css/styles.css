@@ -1134,6 +1134,73 @@ input[type="range"]::-moz-range-thumb {
     border: none !important;
 }
 
+/* CodeMirror theme overrides (fit app palette) */
+.cm-s-material-darker.CodeMirror {
+    background-color: var(--surface-2);
+    color: var(--text);
+}
+
+.cm-s-material-darker .CodeMirror-gutters {
+    background: var(--surface-3);
+    color: var(--text-dim);
+    border: none;
+}
+
+.cm-s-material-darker .CodeMirror-guttermarker,
+.cm-s-material-darker .CodeMirror-guttermarker-subtle,
+.cm-s-material-darker .CodeMirror-linenumber {
+    color: var(--text-dim);
+}
+
+.cm-s-material-darker .CodeMirror-cursor {
+    border-left: 1px solid var(--accent-color);
+}
+
+.cm-s-material-darker div.CodeMirror-selected,
+.cm-s-material-darker.CodeMirror-focused div.CodeMirror-selected {
+    background: rgba(255,255,255,0.08);
+}
+
+.cm-s-material-darker .CodeMirror-line::selection,
+.cm-s-material-darker .CodeMirror-line > span::selection,
+.cm-s-material-darker .CodeMirror-line > span > span::selection {
+    background: rgba(255,255,255,0.12);
+}
+
+.cm-s-material-darker .CodeMirror-line::-moz-selection,
+.cm-s-material-darker .CodeMirror-line > span::-moz-selection,
+.cm-s-material-darker .CodeMirror-line > span > span::-moz-selection {
+    background: rgba(255,255,255,0.12);
+}
+
+.cm-s-material-darker .CodeMirror-activeline-background {
+    background: rgba(0,0,0,0.35);
+}
+
+.cm-s-material-darker .cm-keyword { color: var(--primary-color); }
+.cm-s-material-darker .cm-operator { color: var(--notice-color); }
+.cm-s-material-darker .cm-variable-2 { color: var(--text); }
+.cm-s-material-darker .cm-type,
+.cm-s-material-darker .cm-variable-3 { color: var(--notice-color); }
+.cm-s-material-darker .cm-builtin { color: var(--accent-color); }
+.cm-s-material-darker .cm-atom { color: var(--notice-color); }
+.cm-s-material-darker .cm-number { color: var(--warn-color); }
+.cm-s-material-darker .cm-def { color: var(--primary-color); }
+.cm-s-material-darker .cm-string { color: var(--accent-color); }
+.cm-s-material-darker .cm-string-2 { color: var(--accent-color); }
+.cm-s-material-darker .cm-comment { color: var(--text-dim); }
+.cm-s-material-darker .cm-variable { color: var(--text); }
+.cm-s-material-darker .cm-tag { color: var(--warn-color); }
+.cm-s-material-darker .cm-meta { color: var(--notice-color); }
+.cm-s-material-darker .cm-attribute { color: var(--primary-color); }
+.cm-s-material-darker .cm-property { color: var(--primary-color); }
+.cm-s-material-darker .cm-qualifier { color: var(--notice-color); }
+.cm-s-material-darker .cm-error { color: #fff; background-color: var(--warn-color); }
+.cm-s-material-darker .CodeMirror-matchingbracket {
+    text-decoration: underline;
+    color: var(--text) !important;
+}
+
 /* ── Editor top row ──────────────────────────────────── */
 .editor-top-row {
     display: flex;
