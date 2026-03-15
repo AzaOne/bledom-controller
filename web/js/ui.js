@@ -15,6 +15,7 @@ export const ui = {
     rssiText:                document.getElementById('rssiText'),
     darkModeToggle:          document.getElementById('darkModeToggle'),
     sidebarToggle:           document.getElementById('sidebarToggle'),
+    content:                 document.getElementById('content'),
     offlineOverlay:          document.getElementById('offlineOverlay'),
 
     // Power
@@ -174,8 +175,10 @@ export function setRSSI(rssi) {
 export function showControls(visible) {
     if (visible) {
         ui.offlineOverlay.classList.add('hidden');
+        ui.content?.classList.remove('no-scroll');
     } else {
         ui.offlineOverlay.classList.remove('hidden');
+        ui.content?.classList.add('no-scroll');
     }
 }
 
@@ -195,7 +198,7 @@ export function initColorPicker() {
 
     ui.colorPicker = new Iro.ColorPicker('#colorPickerContainer', {
         width: 230,
-        color: '#ff0000',
+        color: '#00ff00',
         borderWidth: 2,
         borderColor: 'rgba(255,255,255,0.15)',
         layout: [
