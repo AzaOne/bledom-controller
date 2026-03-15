@@ -151,13 +151,13 @@
                         <h2><span class="material-icons-round">code</span> Lua Patterns &amp; Editor</h2>
                     </div>
                     <div class="panel-body">
-                        <div class="card">
+                        <div class="card pattern-run-card">
                             <h3 class="card-title"><span class="material-icons-round">play_circle</span> Run Pattern</h3>
-                            <div class="status-row" style="margin-bottom: 8px;">
+                            <div class="status-row">
                                 <span class="field-label">Status:</span>
                                 <span id="patternStatus" class="pattern-status-badge">Idle</span>
                             </div>
-                            <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+                            <div class="pattern-run-row" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
                                 <div class="field-group" style="flex: 1; min-width: 200px;">
                                     <label for="patternSelector" class="field-label">Select Pattern</label>
                                     <select id="patternSelector" class="field-select"></select>
@@ -172,7 +172,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="card">
+                        <div class="card pattern-editor-card">
                             <h3 class="card-title"><span class="material-icons-round">edit</span> Pattern Editor</h3>
                             <div class="editor-top-row">
                                 <div class="field-group editor-select">
@@ -209,15 +209,15 @@
                         <h2><span class="material-icons-round">schedule</span> Scheduler (Agent)</h2>
                     </div>
                     <div class="panel-body">
-                        <div class="card">
+                        <div class="card schedule-form-card">
                             <h3 class="card-title"><span class="material-icons-round">add_alarm</span> Add / Edit Schedule</h3>
                             <div class="cron-mode-tabs">
                                 <button class="cron-tab active" id="cronTabSimple" data-mode="simple">Simple</button>
                                 <button class="cron-tab" id="cronTabAdvanced" data-mode="advanced">Advanced</button>
                             </div>
-                            <div id="cronSimpleMode" style="display: flex; flex-direction: column; gap: 16px;">
+                            <div id="cronSimpleMode" class="cron-mode-panel" style="display: flex; flex-direction: column; gap: 12px;">
                                 <div class="panel-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                                    <div class="field-group">
+                                    <div class="field-group advanced-panel">
                                         <label class="field-label">Time</label>
                                         <div class="time-row">
                                             <select id="cronHour" class="field-select time-sel"></select>
@@ -225,17 +225,8 @@
                                             <select id="cronMinute" class="field-select time-sel"></select>
                                         </div>
                                     </div>
-                                    <div class="field-group">
-                                        <label for="cronCommandType" class="field-label">Command</label>
-                                        <select id="cronCommandType" class="field-select">
-                                            <option value="power on">Power ON</option>
-                                            <option value="power off">Power OFF</option>
-                                            <option value="pattern">Run Pattern…</option>
-                                        </select>
-                                        <select id="cronPatternSelect" class="field-select" style="display:none; margin-top:8px;"></select>
-                                    </div>
                                 </div>
-                                <div class="field-group">
+                                <div class="field-group schedule-days-group advanced-panel">
                                     <label class="field-label">Days</label>
                                     <div class="weekday-selector">
                                         <label class="day-chip"><input type="checkbox" name="cronDay" value="0"><span>Mon</span></label>
@@ -248,14 +239,23 @@
                                         <label class="day-chip" id="cronEveryDayLabel"><input type="checkbox" id="cronEveryDay"><span>Every Day</span></label>
                                     </div>
                                 </div>
+                                <div class="field-group advanced-panel">
+                                    <label for="cronCommandType" class="field-label">Command</label>
+                                    <select id="cronCommandType" class="field-select">
+                                        <option value="power on">Power ON</option>
+                                        <option value="power off">Power OFF</option>
+                                        <option value="pattern">Run Pattern…</option>
+                                    </select>
+                                    <select id="cronPatternSelect" class="field-select" style="display:none; margin-top:8px;"></select>
+                                </div>
                             </div>
-                            <div id="cronAdvancedMode" style="display:none; flex-direction: column; gap: 16px;">
-                                <div class="field-group">
+                            <div id="cronAdvancedMode" class="cron-mode-panel" style="display:none; flex-direction: column; gap: 12px;">
+                                <div class="field-group advanced-panel">
                                     <label for="scheduleSpec" class="field-label">Cron Expression</label>
                                     <input type="text" id="scheduleSpec" class="field-input" placeholder="* * * * *">
                                     <p class="hint"><a href="https://crontab.guru/" target="_blank" rel="noopener">crontab.guru</a> — MINUTE HOUR DOM MONTH DOW</p>
                                 </div>
-                                <div class="field-group">
+                                <div class="field-group advanced-panel">
                                     <label for="scheduleCommand" class="field-label">Command</label>
                                     <input type="text" id="scheduleCommand" class="field-input" placeholder="power off / pattern sunrise.lua">
                                 </div>
@@ -353,17 +353,14 @@
                     </div>
                     <div class="panel-body">
                         <div class="panel-grid">
-                            <div class="card">
+                            <div class="card advanced-card device-schedule-card">
                                 <h3 class="card-title"><span class="material-icons-round">memory</span> On-Device Scheduling</h3>
                                 <div class="button-row" style="margin-bottom: 8px;">
                                     <button id="syncTimeBtn" class="btn btn-outline">
                                     <span class="material-icons-round">sync</span> Sync Time
                                     </button>
-                                    <button id="clearScheduleBtn" class="btn btn-danger">
-                                    <span class="material-icons-round">event_busy</span> Clear Device Schedule
-                                    </button>
                                 </div>
-                                <div class="field-group">
+                                <div class="field-group advanced-panel">
                                     <label class="field-label">On-Device Schedule Time</label>
                                     <div class="time-row">
                                         <select id="scheduleHour" class="field-select time-sel"></select>
@@ -373,19 +370,20 @@
                                         <select id="scheduleSecond" class="field-select time-sel"></select>
                                     </div>
                                 </div>
-                                <div class="field-group">
+                                <div class="field-group schedule-days-group advanced-panel">
                                     <label class="field-label">Days</label>
                                     <div class="weekday-selector">
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="6"><span>Su</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="0"><span>Mo</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="1"><span>Tu</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="2"><span>We</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="3"><span>Th</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="4"><span>Fr</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="5"><span>Sa</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday" value="0"><span>Mon</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday" value="1"><span>Tue</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday" value="2"><span>Wed</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday" value="3"><span>Thu</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday" value="4"><span>Fri</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday" value="5"><span>Sat</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday" value="6"><span>Sun</span></label>
+                                        <label class="day-chip" id="deviceEveryDayLabel"><input type="checkbox" id="deviceEveryDay"><span>Every Day</span></label>
                                     </div>
                                 </div>
-                                <div class="field-group">
+                                <div class="field-group advanced-panel">
                                     <label for="scheduleAction" class="field-label">Action</label>
                                     <select id="scheduleAction" class="field-select">
                                         <option value="on">Turn ON</option>
@@ -393,14 +391,17 @@
                                     </select>
                                 </div>
                                 <div class="button-row" style="justify-content: flex-end; margin-top: auto;">
+                                    <button id="clearScheduleBtn" class="btn btn-danger">
+                                    <span class="material-icons-round">event_busy</span> Clear Device Schedule
+                                    </button>
                                     <button id="setScheduleBtn" class="btn btn-accent">
                                     <span class="material-icons-round">alarm_add</span> Set Schedule
                                     </button>
                                 </div>
                             </div>
-                            <div class="card">
+                            <div class="card advanced-card device-rgb-card">
                                 <h3 class="card-title"><span class="material-icons-round">cable</span> RGB Wire Order</h3>
-                                <div class="wire-order-grid">
+                                <div class="wire-order-grid advanced-panel">
                                     <div class="field-group">
                                         <label for="wire1" class="field-label">1st Wire</label>
                                         <select id="wire1" class="field-select">

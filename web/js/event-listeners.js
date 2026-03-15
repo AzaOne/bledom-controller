@@ -198,20 +198,44 @@ export function initEventListeners() {
         });
     }
 
-    if (ui.cronEveryDay) {
-        ui.cronEveryDay.addEventListener('change', () => {
-            const checked = ui.cronEveryDay.checked;
-            document.querySelectorAll('input[name="cronDay"]').forEach(cb => {
-                cb.checked = false;
+    function bindEveryDayToggle(everyDayEl, daySelector) {
+        if (!everyDayEl) return;
+
+        const setAllDays = (checked) => {
+            document.querySelectorAll(daySelector).forEach(cb => {
+                cb.checked = checked;
                 cb.disabled = checked;
+            });
+        };
+
+        const syncEveryDayFromDays = () => {
+            const days = [...document.querySelectorAll(daySelector)];
+            if (days.length === 0) return;
+            const allChecked = days.every(d => d.checked);
+            if (allChecked && !everyDayEl.checked) {
+                everyDayEl.checked = true;
+                days.forEach(d => { d.disabled = true; });
+            }
+        };
+
+        everyDayEl.addEventListener('change', () => {
+            setAllDays(everyDayEl.checked);
+        });
+
+        document.querySelectorAll(daySelector).forEach(cb => {
+            cb.addEventListener('change', () => {
+                if (!cb.checked && everyDayEl.checked) {
+                    everyDayEl.checked = false;
+                    document.querySelectorAll(daySelector).forEach(d => { d.disabled = false; });
+                    return;
+                }
+                syncEveryDayFromDays();
             });
         });
     }
-    document.querySelectorAll('input[name="cronDay"]').forEach(cb => {
-        cb.addEventListener('change', () => {
-            if (ui.cronEveryDay && cb.checked) ui.cronEveryDay.checked = false;
-        });
-    });
+
+    bindEveryDayToggle(ui.cronEveryDay, 'input[name="cronDay"]');
+    bindEveryDayToggle(ui.deviceEveryDay, 'input[name="weekday"]');
 
     if (ui.cronCommandType) {
         ui.cronCommandType.addEventListener('change', () => {

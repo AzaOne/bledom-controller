@@ -55,6 +55,7 @@ export const ui = {
     cronHour:                document.getElementById('cronHour'),
     cronMinute:              document.getElementById('cronMinute'),
     cronEveryDay:            document.getElementById('cronEveryDay'),
+    deviceEveryDay:          document.getElementById('deviceEveryDay'),
     cronCommandType:         document.getElementById('cronCommandType'),
     cronPatternSelect:       document.getElementById('cronPatternSelect'),
     scheduleSpec:            document.getElementById('scheduleSpec'),

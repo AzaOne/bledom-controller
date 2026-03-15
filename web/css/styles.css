@@ -35,6 +35,7 @@
     --radius-sm:      8px;
     --radius-xs:      5px;
     --transition:     0.2s ease;
+    --form-gap:       12px;
 }
 
 /* Light mode overrides */
@@ -801,10 +802,85 @@ input[type="range"]::-moz-range-thumb {
 .cron-mode-tabs {
     display: flex;
     border: 1px solid var(--border);
-    background: var(--surface-2);
+    background: var(--surface-3);
     border-radius: var(--radius-sm);
     padding: 4px;
     gap: 4px;
+}
+
+.schedule-form-card {
+    position: relative;
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+    gap: var(--form-gap);
+}
+
+.schedule-form-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 14px 34px rgba(0,0,0,0.18);
+    transform: translateY(-2px);
+}
+
+.cron-mode-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--form-gap);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0;
+    position: relative;
+}
+
+
+.schedule-form-card .field-group {
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
+.schedule-form-card .advanced-panel {
+    padding: 12px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.schedule-form-card .field-group .field-input,
+.schedule-form-card .field-group .field-select {
+    background: var(--surface);
+    border-color: var(--border-strong);
+}
+
+.schedule-form-card .weekday-selector {
+    justify-content: center;
+    padding: 8px 0 4px;
+    gap: 10px;
+}
+
+.schedule-form-card .button-row {
+    margin-top: 4px;
+}
+
+.schedule-form-card .card-title {
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.schedule-days-group .field-label {
+    text-align: center;
+    width: 100%;
+    display: block;
+}
+
+.schedule-days-group .weekday-selector {
+    justify-content: center;
+    padding: 8px 0 4px;
+    gap: 10px;
 }
 
 .cron-tab {
@@ -821,12 +897,32 @@ input[type="range"]::-moz-range-thumb {
     transition: color var(--transition), border-color var(--transition), background var(--transition), box-shadow var(--transition);
 }
 
-.cron-tab:hover { color: var(--text); background: var(--surface-3); }
+.cron-tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
 .cron-tab.active {
     color: var(--primary-color);
-    background: var(--surface);
+    background: var(--surface-2);
     border-color: var(--border-strong);
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* ── Advanced device cards ───────────────────────────── */
+.advanced-card {
+    background: var(--surface);
+    border-color: var(--border);
+    gap: var(--form-gap);
+}
+
+.advanced-card .advanced-panel {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+}
+
+.advanced-card .advanced-panel .field-input,
+.advanced-card .advanced-panel .field-select {
+    background: var(--surface);
+    border-color: var(--border-strong);
 }
 
 /* ── Edit bar ────────────────────────────────────────── */
@@ -1217,6 +1313,51 @@ input[type="range"]::-moz-range-thumb {
 .editor-actions {
     align-self: flex-end;
     margin-bottom: 0;
+}
+
+/* ── Lua editor emphasis ─────────────────────────────── */
+.pattern-run-card {
+    background: var(--surface);
+    border-color: var(--border);
+    gap: var(--form-gap);
+}
+
+.pattern-run-card .status-row {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+}
+
+.pattern-run-card .pattern-run-row {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+}
+
+.pattern-editor-card {
+    background: var(--surface);
+    border-color: var(--border);
+    gap: var(--form-gap);
+}
+
+.pattern-editor-card .editor-top-row {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+}
+
+.pattern-editor-card .code-editor-wrap {
+    background: var(--surface-2);
+    border-color: var(--border-strong);
+}
+
+.pattern-run-card .button-row .btn,
+.pattern-editor-card .button-row .btn {
+    min-height: 36px;
+    padding: 10px 16px;
 }
 
 /* ── Docs ────────────────────────────────────────────── */
