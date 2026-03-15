@@ -80,9 +80,9 @@
                     </li>
                     <li>
                         <button class="nav-item" data-section="sectionAdvanced" role="tab" aria-selected="false"
-                            title="Advanced Settings">
+                            title="Advanced &amp; Settings">
                         <span class="material-icons-round">settings</span>
-                        <span class="nav-label">Advanced Settings</span>
+                        <span class="nav-label">Advanced &amp; Settings</span>
                         </button>
                     </li>
                 </ul>
@@ -355,91 +355,130 @@
                 </section>
                 <section id="sectionAdvanced" class="panel" role="tabpanel">
                     <div class="panel-header">
-                        <h2><span class="material-icons-round">settings</span> Advanced Settings</h2>
+                        <h2><span class="material-icons-round">settings</span> Advanced &amp; Settings</h2>
                     </div>
                     <div class="panel-body">
                         <div class="panel-grid">
-                            <div class="card advanced-card device-schedule-card">
-                                <h3 class="card-title"><span class="material-icons-round">memory</span> On-Device Schedule</h3>
-                                <div class="button-row" style="margin-bottom: 8px;">
-                                    <button id="syncTimeBtn" class="btn btn-outline">
-                                    <span class="material-icons-round">sync</span> Sync Time
-                                    </button>
-                                </div>
-                                <div class="field-group advanced-panel">
-                                    <label class="field-label">On-Device Schedule Time</label>
-                                    <div class="time-row">
-                                        <select id="scheduleHour" class="field-select time-sel"></select>
-                                        <span class="time-sep">:</span>
-                                        <select id="scheduleMinute" class="field-select time-sel"></select>
-                                        <span class="time-sep">:</span>
-                                        <select id="scheduleSecond" class="field-select time-sel"></select>
+                            <div class="panel-col">
+                                <div class="card advanced-card device-schedule-card">
+                                    <h3 class="card-title"><span class="material-icons-round">memory</span> On-Device Schedule</h3>
+                                    <div class="button-row" style="margin-bottom: 8px;">
+                                        <button id="syncTimeBtn" class="btn btn-outline">
+                                        <span class="material-icons-round">sync</span> Sync Time
+                                        </button>
                                     </div>
-                                </div>
-                                <div class="field-group schedule-days-group advanced-panel">
-                                    <label class="field-label">Days</label>
-                                    <div class="weekday-selector">
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="0"><span>Mon</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="1"><span>Tue</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="2"><span>Wed</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="3"><span>Thu</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="4"><span>Fri</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="5"><span>Sat</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="weekday" value="6"><span>Sun</span></label>
-                                        <label class="day-chip" id="deviceEveryDayLabel"><input type="checkbox" id="deviceEveryDay"><span>Every Day</span></label>
+                                    <div class="field-group advanced-panel">
+                                        <label class="field-label">On-Device Schedule Time</label>
+                                        <div class="time-row">
+                                            <select id="scheduleHour" class="field-select time-sel"></select>
+                                            <span class="time-sep">:</span>
+                                            <select id="scheduleMinute" class="field-select time-sel"></select>
+                                            <span class="time-sep">:</span>
+                                            <select id="scheduleSecond" class="field-select time-sel"></select>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="field-group advanced-panel">
-                                    <label for="scheduleAction" class="field-label">Action</label>
-                                    <select id="scheduleAction" class="field-select">
-                                        <option value="on">Turn ON</option>
-                                        <option value="off">Turn OFF</option>
-                                    </select>
-                                </div>
-                                <div class="button-row" style="justify-content: flex-end; margin-top: auto;">
-                                    <button id="clearScheduleBtn" class="btn btn-danger">
-                                    <span class="material-icons-round">event_busy</span> Clear Device Schedule
-                                    </button>
-                                    <button id="setScheduleBtn" class="btn btn-accent">
-                                    <span class="material-icons-round">alarm_add</span> Set Schedule
-                                    </button>
+                                    <div class="field-group schedule-days-group advanced-panel">
+                                        <label class="field-label">Days</label>
+                                        <div class="weekday-selector">
+                                            <label class="day-chip"><input type="checkbox" name="weekday" value="0"><span>Mon</span></label>
+                                            <label class="day-chip"><input type="checkbox" name="weekday" value="1"><span>Tue</span></label>
+                                            <label class="day-chip"><input type="checkbox" name="weekday" value="2"><span>Wed</span></label>
+                                            <label class="day-chip"><input type="checkbox" name="weekday" value="3"><span>Thu</span></label>
+                                            <label class="day-chip"><input type="checkbox" name="weekday" value="4"><span>Fri</span></label>
+                                            <label class="day-chip"><input type="checkbox" name="weekday" value="5"><span>Sat</span></label>
+                                            <label class="day-chip"><input type="checkbox" name="weekday" value="6"><span>Sun</span></label>
+                                            <label class="day-chip" id="deviceEveryDayLabel"><input type="checkbox" id="deviceEveryDay"><span>Every Day</span></label>
+                                        </div>
+                                    </div>
+                                    <div class="field-group advanced-panel">
+                                        <label for="scheduleAction" class="field-label">Action</label>
+                                        <select id="scheduleAction" class="field-select">
+                                            <option value="on">Turn ON</option>
+                                            <option value="off">Turn OFF</option>
+                                        </select>
+                                    </div>
+                                    <div class="button-row" style="justify-content: flex-end; margin-top: auto;">
+                                        <button id="clearScheduleBtn" class="btn btn-danger">
+                                        <span class="material-icons-round">event_busy</span> Clear Device Schedule
+                                        </button>
+                                        <button id="setScheduleBtn" class="btn btn-accent">
+                                        <span class="material-icons-round">alarm_add</span> Set Schedule
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="card advanced-card device-rgb-card">
-                                <h3 class="card-title"><span class="material-icons-round">cable</span> RGB Channel Order</h3>
-                                <div class="wire-order-grid advanced-panel">
-                                    <div class="field-group">
-                                        <label for="wire1" class="field-label">1st Wire</label>
-                                        <select id="wire1" class="field-select">
-                                            <option value="1" selected>Red</option>
-                                            <option value="2">Green</option>
-                                            <option value="3">Blue</option>
-                                        </select>
+                            <div class="panel-col">
+                                <div class="card advanced-card device-rgb-card">
+                                    <h3 class="card-title"><span class="material-icons-round">cable</span> RGB Channel Order</h3>
+                                    <div class="wire-order-grid advanced-panel">
+                                        <div class="field-group">
+                                            <label for="wire1" class="field-label">1st Wire</label>
+                                            <select id="wire1" class="field-select">
+                                                <option value="1" selected>Red</option>
+                                                <option value="2">Green</option>
+                                                <option value="3">Blue</option>
+                                            </select>
+                                        </div>
+                                        <div class="field-group">
+                                            <label for="wire2" class="field-label">2nd Wire</label>
+                                            <select id="wire2" class="field-select">
+                                                <option value="1">Red</option>
+                                                <option value="2" selected>Green</option>
+                                                <option value="3">Blue</option>
+                                            </select>
+                                        </div>
+                                        <div class="field-group">
+                                            <label for="wire3" class="field-label">3rd Wire</label>
+                                            <select id="wire3" class="field-select">
+                                                <option value="1">Red</option>
+                                                <option value="2">Green</option>
+                                                <option value="3" selected>Blue</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div class="field-group">
-                                        <label for="wire2" class="field-label">2nd Wire</label>
-                                        <select id="wire2" class="field-select">
-                                            <option value="1">Red</option>
-                                            <option value="2" selected>Green</option>
-                                            <option value="3">Blue</option>
-                                        </select>
-                                    </div>
-                                    <div class="field-group">
-                                        <label for="wire3" class="field-label">3rd Wire</label>
-                                        <select id="wire3" class="field-select">
-                                            <option value="1">Red</option>
-                                            <option value="2">Green</option>
-                                            <option value="3" selected>Blue</option>
-                                        </select>
+                                    <div class="button-row" style="justify-content: flex-end; margin-top: auto;">
+                                        <button id="setRgbOrderBtn" class="btn btn-primary">
+                                        <span class="material-icons-round">swap_horiz</span> Apply Order
+                                        </button>
                                     </div>
                                 </div>
-                                <div class="button-row" style="justify-content: flex-end; margin-top: auto;">
-                                    <button id="setRgbOrderBtn" class="btn btn-primary">
-                                    <span class="material-icons-round">swap_horiz</span> Apply Order
-                                    </button>
+                                <div class="card advanced-card ui-settings-card">
+                                <h3 class="card-title"><span class="material-icons-round">tune</span> Settings</h3>
+                                <div class="settings-stack">
+                                    <div class="setting-row">
+                                        <div class="setting-text">
+                                            <div class="setting-label">Remember Last Section</div>
+                                            <div class="setting-hint">Automatically open the last visited tab.</div>
+                                        </div>
+                                        <label class="schedule-toggle setting-toggle">
+                                            <input id="rememberLastSectionToggle" class="schedule-toggle-input" type="checkbox" aria-label="Remember last section">
+                                            <span class="schedule-toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="setting-row">
+                                        <div class="setting-text">
+                                            <div class="setting-label">Hide Built-in Effects</div>
+                                            <div class="setting-hint">Remove the Effects section from the sidebar and main view.</div>
+                                        </div>
+                                        <label class="schedule-toggle setting-toggle">
+                                            <input id="hideEffectsToggle" class="schedule-toggle-input" type="checkbox" aria-label="Hide Built-in Effects">
+                                            <span class="schedule-toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="setting-row">
+                                        <div class="setting-text">
+                                            <div class="setting-label">Reset UI Preferences</div>
+                                            <div class="setting-hint">Restore defaults for theme, sidebar, UI toggles, and color presets.</div>
+                                        </div>
+                                        <button id="resetUiPrefsBtn" class="btn btn-ghost">
+                                            <span class="material-icons-round">restart_alt</span>
+                                            Reset
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
                     </div>
                 </section>
             </main>

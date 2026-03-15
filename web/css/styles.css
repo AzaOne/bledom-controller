@@ -134,6 +134,10 @@ ul { list-style: none; }
     font-weight: 700;
     letter-spacing: 0.04em;
     color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 190px;
 }
 
 /* Status pill */
@@ -969,6 +973,47 @@ input[type="range"]::-moz-range-thumb {
     border-color: var(--border-strong);
 }
 
+.settings-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.setting-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 16px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+}
+
+.setting-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.setting-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.setting-hint {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.setting-toggle {
+    justify-self: end;
+    align-self: start;
+    margin-top: 2px;
+}
+
 /* ── Edit bar ────────────────────────────────────────── */
 .edit-bar {
     display: flex;
@@ -1490,7 +1535,7 @@ input[type="range"]::-moz-range-thumb {
     #sidebar.collapsed .nav-item { padding: 6px 4px; justify-content: center; }
     #sidebar.collapsed .nav-label { opacity: 1 !important; pointer-events: auto; }
 
-    .nav-label { opacity: 1 !important; font-size: 9px; }
+    .nav-label { display: none; }
     .nav-item .material-icons-round { font-size: 20px !important; }
 
     #content {
@@ -1511,7 +1556,10 @@ input[type="range"]::-moz-range-thumb {
     }
 
     /* Top bar optimizations */
-    #appTitle { display: none; }
+    #appTitle {
+        font-size: 14px;
+        max-width: 140px;
+    }
     #topBar { padding: 0 8px; gap: 8px; }
     #topBarLeft, #topBarRight { gap: 6px; }
     #statusPill, #rssiPill { padding: 4px 8px; font-size: 11px; }

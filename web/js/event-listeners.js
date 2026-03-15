@@ -5,6 +5,13 @@ import {
     clearScheduleEditMode,
     toggleDarkMode,
     navigateTo,
+    applyEffectsVisibility,
+    persistEffectsVisibility,
+    initRememberLastSection,
+    setRememberLastSection,
+    storeLastSection,
+    getActiveSectionId,
+    resetUiPreferences,
 } from './ui.js';
 import { deviceAPI } from './api.js';
 import { debounce, normalizeHex, pad } from './utils.js';
@@ -114,6 +121,29 @@ export function initEventListeners() {
     });
     ui.setScheduleBtn.addEventListener('click', () => deviceAPI.setDeviceSchedule(true));
     ui.clearScheduleBtn.addEventListener('click', () => deviceAPI.setDeviceSchedule(false));
+    if (ui.hideEffectsToggle) {
+        ui.hideEffectsToggle.addEventListener('change', () => {
+            const hidden = ui.hideEffectsToggle.checked;
+            persistEffectsVisibility(hidden);
+            applyEffectsVisibility(hidden);
+        });
+    }
+    if (ui.rememberLastSectionToggle) {
+        ui.rememberLastSectionToggle.addEventListener('change', () => {
+            const enabled = ui.rememberLastSectionToggle.checked;
+            setRememberLastSection(enabled);
+            if (enabled) {
+                const active = getActiveSectionId();
+                if (active) storeLastSection(active);
+            }
+            initRememberLastSection();
+        });
+    }
+    if (ui.resetUiPrefsBtn) {
+        ui.resetUiPrefsBtn.addEventListener('click', () => {
+            if (confirm('Reset all UI preferences to defaults?')) resetUiPreferences();
+        });
+    }
 
     ui.runPatternBtn.addEventListener('click', () => { if (ui.patternSelector.value) deviceAPI.runPattern(ui.patternSelector.value); });
     ui.stopPatternBtn.addEventListener('click', deviceAPI.stopPattern);

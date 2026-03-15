@@ -32,6 +32,12 @@ export const ui = {
     patternGrid:             document.getElementById('patternGrid'),
     speedSlider:             document.getElementById('speedSlider'),
     speedValue:              document.getElementById('speedValue'),
+    effectsNav:              document.querySelector('.nav-item[data-section="sectionEffects"]'),
+    effectsNavItem:          document.querySelector('.nav-item[data-section="sectionEffects"]')?.closest('li'),
+    effectsSection:          document.getElementById('sectionEffects'),
+    hideEffectsToggle:       document.getElementById('hideEffectsToggle'),
+    rememberLastSectionToggle: document.getElementById('rememberLastSectionToggle'),
+    resetUiPrefsBtn:         document.getElementById('resetUiPrefsBtn'),
 
     // Lua
     patternSelector:         document.getElementById('patternSelector'),
@@ -101,12 +107,105 @@ export function navigateTo(sectionId) {
     if (sectionId === 'sectionColor' && ui.colorPicker) {
         requestAnimationFrame(() => ui.colorPicker.resize(230));
     }
+    storeLastSection(sectionId);
 }
 
 export function initNavigation() {
     document.querySelectorAll('.nav-item').forEach(btn => {
         btn.addEventListener('click', () => navigateTo(btn.dataset.section));
     });
+}
+
+// ──────────────────────────────────────────────────────────────
+// Effects visibility
+// ──────────────────────────────────────────────────────────────
+const EFFECTS_VISIBILITY_KEY = 'hideBuiltInEffects';
+const REMEMBER_LAST_SECTION_KEY = 'rememberLastSection';
+const LAST_SECTION_KEY = 'lastSectionId';
+
+export function applyEffectsVisibility(hidden) {
+    const shouldHide = Boolean(hidden);
+    if (ui.effectsSection) {
+        ui.effectsSection.style.display = shouldHide ? 'none' : '';
+        ui.effectsSection.setAttribute('aria-hidden', shouldHide ? 'true' : 'false');
+        if (shouldHide) ui.effectsSection.classList.remove('active');
+    }
+    if (ui.effectsNavItem) {
+        ui.effectsNavItem.style.display = shouldHide ? 'none' : '';
+        ui.effectsNavItem.setAttribute('aria-hidden', shouldHide ? 'true' : 'false');
+    }
+    if (ui.effectsNav) {
+        ui.effectsNav.style.display = shouldHide ? 'none' : '';
+        ui.effectsNav.setAttribute('aria-hidden', shouldHide ? 'true' : 'false');
+        if (shouldHide) ui.effectsNav.classList.remove('active');
+    }
+    if (shouldHide) {
+        const active = document.querySelector('.panel.active');
+        if (active && active.id === 'sectionEffects') navigateTo('sectionColor');
+    }
+}
+
+export function initEffectsVisibility() {
+    const hidden = localStorage.getItem(EFFECTS_VISIBILITY_KEY) === 'true';
+    if (ui.hideEffectsToggle) ui.hideEffectsToggle.checked = hidden;
+    applyEffectsVisibility(hidden);
+}
+
+export function persistEffectsVisibility(hidden) {
+    localStorage.setItem(EFFECTS_VISIBILITY_KEY, hidden ? 'true' : 'false');
+}
+
+export function shouldRememberLastSection() {
+    return localStorage.getItem(REMEMBER_LAST_SECTION_KEY) === 'true';
+}
+
+export function storeLastSection(sectionId) {
+    if (!shouldRememberLastSection()) return;
+    if (sectionId) localStorage.setItem(LAST_SECTION_KEY, sectionId);
+}
+
+export function initRememberLastSection() {
+    if (ui.rememberLastSectionToggle) {
+        ui.rememberLastSectionToggle.checked = shouldRememberLastSection();
+    }
+}
+
+export function restoreLastSection() {
+    if (!shouldRememberLastSection()) return;
+    const saved = localStorage.getItem(LAST_SECTION_KEY);
+    if (!saved) return;
+    const target = document.getElementById(saved);
+    if (!target) return;
+    const hidden = target.style.display === 'none' || target.getAttribute('aria-hidden') === 'true';
+    if (hidden) {
+        navigateTo('sectionColor');
+        return;
+    }
+    navigateTo(saved);
+}
+
+export function setRememberLastSection(enabled) {
+    localStorage.setItem(REMEMBER_LAST_SECTION_KEY, enabled ? 'true' : 'false');
+    if (!enabled) localStorage.removeItem(LAST_SECTION_KEY);
+}
+
+export function getActiveSectionId() {
+    const active = document.querySelector('.panel.active');
+    return active ? active.id : null;
+}
+
+export function resetUiPreferences() {
+    const keys = [
+        'darkMode',
+        'sidebar_collapsed',
+        'ble_presets',
+        'ble_custom_presets',
+        EFFECTS_VISIBILITY_KEY,
+        REMEMBER_LAST_SECTION_KEY,
+        LAST_SECTION_KEY,
+    ];
+    keys.forEach(key => localStorage.removeItem(key));
+    window.location.reload();
 }
 
 // ──────────────────────────────────────────────────────────────

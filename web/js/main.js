@@ -13,6 +13,9 @@ import {
     initDarkMode,
     initNavigation,
     initSidebarToggle,
+    initEffectsVisibility,
+    initRememberLastSection,
+    restoreLastSection,
 } from './ui.js';
 import { deviceAPI, setSocket } from './api.js';
 import { initEventListeners } from './event-listeners.js';
@@ -27,7 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initSidebarToggle();
     initDarkMode();
+    initEffectsVisibility();
+    initRememberLastSection();
     initEventListeners();
+    restoreLastSection();
     renderHardwarePatterns(deviceAPI.setHardwarePattern);
     populateTimePickers();
     populateCronTimePickers();
