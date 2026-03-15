@@ -83,13 +83,6 @@ func (e *Engine) luaSleepCancellable(L *lua.LState, ctx context.Context) int {
 	return 0
 }
 
-// luaSleepNoCancel is a Go implementation for a blocking sleep from Lua (not exposed by default).
-func luaSleepNoCancel(L *lua.LState) int {
-	ms := L.ToInt(1)
-	time.Sleep(time.Duration(ms) * time.Millisecond)
-	return 0
-}
-
 // luaShouldStop allows a Lua script to check if it has been requested to stop.
 func (e *Engine) luaShouldStop(L *lua.LState, ctx context.Context) int {
 	select {

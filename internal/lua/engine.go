@@ -40,8 +40,9 @@ type Engine struct {
 	patternsDir   string
 	eventBus      *core.EventBus
 
-	cmdChan chan engineCmd
-	wg      sync.WaitGroup
+	cmdChan  chan engineCmd
+	stopChan chan struct{}
+	wg       sync.WaitGroup
 }
 
 // NewEngine creates a new Lua engine and starts its background worker.
@@ -51,6 +52,7 @@ func NewEngine(bleController *ble.Controller, patternsDir string, eb *core.Event
 		patternsDir:   patternsDir,
 		eventBus:      eb,
 		cmdChan:       make(chan engineCmd, 10),
+		stopChan:      make(chan struct{}, 1),
 	}
 
 	go e.runLoop()
@@ -63,43 +65,69 @@ func (e *Engine) runLoop() {
 	var currentCancel context.CancelFunc
 	var scriptDone chan struct{}
 
-	for cmd := range e.cmdChan {
-		if currentCancel != nil {
-			currentCancel()
+	cancelCurrent := func() {
+		if currentCancel == nil {
+			return
+		}
+		currentCancel()
+		select {
+		case <-scriptDone:
+		case <-time.After(2 * time.Second):
+			log.Println("[Lua] Timeout waiting for script to stop")
+		}
+		currentCancel = nil
+		scriptDone = nil
+	}
+
+	for {
+		for {
 			select {
-			case <-scriptDone:
-			case <-time.After(2 * time.Second):
-				log.Println("[Lua] Timeout waiting for script to stop")
+			case <-e.stopChan:
+				cancelCurrent()
+				continue
+			default:
 			}
-			currentCancel = nil
-			scriptDone = nil
+			break
 		}
 
-		if cmd.kind == cmdStop {
+		select {
+		case <-e.stopChan:
+			cancelCurrent()
 			continue
-		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-		currentCancel = cancel
-		scriptDone = make(chan struct{})
-
-		go func(cmd engineCmd, ctx context.Context, done chan struct{}) {
-			switch cmd.kind {
-			case cmdRunFile:
-				e.executeFile(cmd.name, cmd.code, ctx, done)
-			case cmdRunString:
-				e.executeString(cmd.name, cmd.code, ctx, done)
+		case cmd, ok := <-e.cmdChan:
+			if !ok {
+				cancelCurrent()
+				return
 			}
-		}(cmd, ctx, scriptDone)
+
+			cancelCurrent()
+
+			if cmd.kind == cmdStop {
+				continue
+			}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			currentCancel = cancel
+			scriptDone = make(chan struct{})
+
+			go func(cmd engineCmd, ctx context.Context, done chan struct{}) {
+				switch cmd.kind {
+				case cmdRunFile:
+					e.executeFile(cmd.name, cmd.code, ctx, done)
+				case cmdRunString:
+					e.executeString(cmd.name, cmd.code, ctx, done)
+				}
+			}(cmd, ctx, scriptDone)
+		}
 	}
 }
 
 // StopCurrentPattern stops the currently running script if any.
 func (e *Engine) StopCurrentPattern() {
 	select {
-	case e.cmdChan <- engineCmd{kind: cmdStop}:
+	case e.stopChan <- struct{}{}:
 	default:
-		log.Println("[Lua] Command channel full, could not send stop command")
+		// Stop already queued; nothing else to do.
 	}
 }
 
