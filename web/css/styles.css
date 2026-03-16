@@ -865,17 +865,7 @@ input[type="range"]::-moz-range-thumb {
 
 .schedule-form-card {
     position: relative;
-    background: var(--surface);
-    border-color: var(--border);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-    transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
     gap: var(--form-gap);
-}
-
-.schedule-form-card:hover {
-    border-color: var(--border-strong);
-    box-shadow: 0 14px 34px rgba(0,0,0,0.18);
-    transform: translateY(-2px);
 }
 
 .cron-mode-panel {

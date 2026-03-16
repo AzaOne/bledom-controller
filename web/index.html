@@ -1,448 +1,506 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>BLEDOM Controller</title>
-        <meta name="description"
-            content="Web interface to control BLEDOM BLE LED strips — color, brightness, effects, Lua patterns and schedules.">
-        <link rel="icon" type="image/svg+xml" href="favicon.svg">
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-        <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5/dist/iro.min.js"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
-        <link rel="stylesheet" href="./css/styles.css">
-    </head>
-    <body class="dark-mode">
-        <header id="topBar">
-            <div id="topBarLeft">
-                <button id="sidebarToggle" class="icon-btn" title="Toggle sidebar" aria-label="Toggle sidebar">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLEDOM Controller</title>
+    <meta name="description"
+        content="Web interface to control BLEDOM BLE LED strips — color, brightness, effects, Lua patterns and schedules.">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5/dist/iro.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="./css/styles.css">
+</head>
+
+<body class="dark-mode">
+    <header id="topBar">
+        <div id="topBarLeft">
+            <button id="sidebarToggle" class="icon-btn" title="Toggle sidebar" aria-label="Toggle sidebar">
                 <span class="material-icons-round">menu</span>
-                </button>
-                <div id="appLogo">
-                    <img src="favicon.svg" alt="Logo" class="logo-img">
-                    <span id="appTitle">BLEDOM</span>
-                </div>
+            </button>
+            <div id="appLogo">
+                <img src="favicon.svg" alt="Logo" class="logo-img">
+                <span id="appTitle">BLEDOM</span>
             </div>
-            <div id="topBarRight">
-                <div id="statusPill">
-                    <span id="statusDot"></span>
-                    <span id="statusText">Connecting…</span>
-                </div>
-                <div id="rssiPill" style="display: none;">
-                    <span class="material-icons-round" style="font-size: 16px;">signal_cellular_alt</span>
-                    <span id="rssiText">0 dBm</span>
-                </div>
-                <button id="darkModeToggle" class="icon-btn" title="Toggle light/dark mode" aria-label="Toggle theme">
+        </div>
+        <div id="topBarRight">
+            <div id="statusPill">
+                <span id="statusDot"></span>
+                <span id="statusText">Connecting…</span>
+            </div>
+            <div id="rssiPill" style="display: none;">
+                <span class="material-icons-round" style="font-size: 16px;">signal_cellular_alt</span>
+                <span id="rssiText">0 dBm</span>
+            </div>
+            <button id="darkModeToggle" class="icon-btn" title="Toggle light/dark mode" aria-label="Toggle theme">
                 <span class="material-icons-round">light_mode</span>
-                </button>
-            </div>
-        </header>
-        <div id="layout">
-            <nav id="sidebar" aria-label="Main navigation">
-                <ul id="navList" role="tablist">
-                    <li>
-                        <button class="nav-item active" data-section="sectionColor" role="tab" aria-selected="true"
-                            title="Power & Color">
+            </button>
+        </div>
+    </header>
+    <div id="layout">
+        <nav id="sidebar" aria-label="Main navigation">
+            <ul id="navList" role="tablist">
+                <li>
+                    <button class="nav-item active" data-section="sectionColor" role="tab" aria-selected="true"
+                        title="Power & Color">
                         <span class="material-icons-round">palette</span>
                         <span class="nav-label">Power &amp; Color Control</span>
-                        </button>
-                    </li>
-                    <li>
-                        <button class="nav-item" data-section="sectionLua" role="tab" aria-selected="false"
-                            title="Lua Patterns &amp; Editor">
+                    </button>
+                </li>
+                <li>
+                    <button class="nav-item" data-section="sectionLua" role="tab" aria-selected="false"
+                        title="Lua Patterns &amp; Editor">
                         <span class="material-icons-round">code</span>
                         <span class="nav-label">Lua Patterns</span>
-                        </button>
-                    </li>
-                    <li>
-                        <button class="nav-item" data-section="sectionScheduler" role="tab" aria-selected="false"
-                            title="Scheduler">
+                    </button>
+                </li>
+                <li>
+                    <button class="nav-item" data-section="sectionScheduler" role="tab" aria-selected="false"
+                        title="Scheduler">
                         <span class="material-icons-round">schedule</span>
                         <span class="nav-label">Agent Schedules</span>
-                        </button>
-                    </li>
-                    <li>
-                        <button class="nav-item" data-section="sectionDocs" role="tab" aria-selected="false"
-                            title="Documentation">
+                    </button>
+                </li>
+                <li>
+                    <button class="nav-item" data-section="sectionDocs" role="tab" aria-selected="false"
+                        title="Documentation">
                         <span class="material-icons-round">menu_book</span>
                         <span class="nav-label">Docs &amp; API</span>
-                        </button>
-                    </li>
-                    <li>
-                        <button class="nav-item" data-section="sectionEffects" role="tab" aria-selected="false"
-                            title="Effects">
+                    </button>
+                </li>
+                <li>
+                    <button class="nav-item" data-section="sectionEffects" role="tab" aria-selected="false"
+                        title="Effects">
                         <span class="material-icons-round">auto_awesome</span>
                         <span class="nav-label">Built-in Effects</span>
-                        </button>
-                    </li>
-                    <li>
-                        <button class="nav-item" data-section="sectionAdvanced" role="tab" aria-selected="false"
-                            title="Advanced &amp; Settings">
+                    </button>
+                </li>
+                <li>
+                    <button class="nav-item" data-section="sectionAdvanced" role="tab" aria-selected="false"
+                        title="Advanced &amp; Settings">
                         <span class="material-icons-round">settings</span>
                         <span class="nav-label">Advanced &amp; Settings</span>
-                        </button>
-                    </li>
-                </ul>
-            </nav>
-            <main id="content" role="main">
-                <div id="pullToRefresh" aria-hidden="true">
-                    <div class="ptr-indicator">
-                        <span class="material-icons-round ptr-icon">arrow_downward</span>
-                        <span class="ptr-text">Pull to refresh</span>
-                    </div>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        <main id="content" role="main">
+            <div id="pullToRefresh" aria-hidden="true">
+                <div class="ptr-indicator">
+                    <span class="material-icons-round ptr-icon">arrow_downward</span>
+                    <span class="ptr-text">Pull to refresh</span>
                 </div>
-                <div id="offlineOverlay">
-                    <span class="material-icons-round overlay-icon">bluetooth_disabled</span>
-                    <p>Connecting to agent…</p>
-                    <p class="overlay-sub">Make sure the BLEDOM agent is running.</p>
+            </div>
+            <div id="offlineOverlay">
+                <span class="material-icons-round overlay-icon">bluetooth_disabled</span>
+                <p>Connecting to agent…</p>
+                <p class="overlay-sub">Make sure the BLEDOM agent is running.</p>
+            </div>
+            <section id="sectionColor" class="panel active" role="tabpanel">
+                <div class="panel-header">
+                    <h2><span class="material-icons-round">palette</span> Power &amp; Color Control</h2>
                 </div>
-                <section id="sectionColor" class="panel active" role="tabpanel">
-                    <div class="panel-header">
-                        <h2><span class="material-icons-round">palette</span> Power &amp; Color Control</h2>
-                    </div>
-                    <div class="panel-body">
-                        <div class="panel-grid">
-                            <div class="panel-col">
-                                <div class="card">
-                                    <h3 class="card-title"><span class="material-icons-round">power_settings_new</span> Power</h3>
-                                    <div class="power-buttons-row">
-                                        <button id="powerOnBtn" class="power-btn power-on">
+                <div class="panel-body">
+                    <div class="panel-grid">
+                        <div class="panel-col">
+                            <div class="card">
+                                <h3 class="card-title"><span class="material-icons-round">power_settings_new</span>
+                                    Power</h3>
+                                <div class="power-buttons-row">
+                                    <button id="powerOnBtn" class="power-btn power-on">
                                         <span class="material-icons-round">power</span>
                                         <span>Turn ON</span>
-                                        </button>
-                                        <button id="powerOffBtn" class="power-btn power-off">
+                                    </button>
+                                    <button id="powerOffBtn" class="power-btn power-off">
                                         <span class="material-icons-round">power_off</span>
                                         <span>Turn OFF</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="card" style="flex: 1;">
-                                    <h3 class="card-title"><span class="material-icons-round">colorize</span> Color Picker</h3>
-                                    <div id="colorPickerContainer" style="display: flex; justify-content: center; align-items: center; padding: 10px 0;"></div>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="panel-col">
-                                <div class="card">
-                                    <h3 class="card-title"><span class="material-icons-round">bookmarks</span> Presets</h3>
-                                    <div id="customPresetsContainer" class="presets-grid"></div>
-                                    <p class="hint">* Right-click or long-press a preset to remove it</p>
+                            <div class="card" style="flex: 1;">
+                                <h3 class="card-title"><span class="material-icons-round">colorize</span> Color Picker
+                                </h3>
+                                <div id="colorPickerContainer"
+                                    style="display: flex; justify-content: center; align-items: center; padding: 10px 0;">
                                 </div>
-                                <div class="card" style="flex: 1;">
-                                    <h3 class="card-title"><span class="material-icons-round">brightness_6</span> Brightness</h3>
-                                    <div class="slider-row">
-                                        <input type="range" id="brightnessSlider" min="1" max="100" value="100" aria-label="Brightness">
-                                        <span id="brightnessValue" class="slider-val">100%</span>
-                                    </div>
-                                    <div class="chip-row" id="brightnessPresets" style="margin-top: 8px;">
-                                        <button class="chip" data-brightness="2">2%</button>
-                                        <button class="chip" data-brightness="5">5%</button>
-                                        <button class="chip" data-brightness="10">10%</button>
-                                        <button class="chip" data-brightness="15">15%</button>
-                                        <button class="chip" data-brightness="20">20%</button>
-                                        <button class="chip" data-brightness="25">25%</button>
-                                        <button class="chip" data-brightness="50">50%</button>
-                                        <button class="chip" data-brightness="75">75%</button>
-                                        <button class="chip" data-brightness="100">100%</button>
-                                    </div>
+                            </div>
+                        </div>
+                        <div class="panel-col">
+                            <div class="card">
+                                <h3 class="card-title"><span class="material-icons-round">bookmarks</span> Presets</h3>
+                                <div id="customPresetsContainer" class="presets-grid"></div>
+                                <p class="hint">* Right-click or long-press a preset to remove it</p>
+                            </div>
+                            <div class="card" style="flex: 1;">
+                                <h3 class="card-title"><span class="material-icons-round">brightness_6</span> Brightness
+                                </h3>
+                                <div class="slider-row">
+                                    <input type="range" id="brightnessSlider" min="1" max="100" value="100"
+                                        aria-label="Brightness">
+                                    <span id="brightnessValue" class="slider-val">100%</span>
+                                </div>
+                                <div class="chip-row" id="brightnessPresets" style="margin-top: 8px;">
+                                    <button class="chip" data-brightness="2">2%</button>
+                                    <button class="chip" data-brightness="5">5%</button>
+                                    <button class="chip" data-brightness="10">10%</button>
+                                    <button class="chip" data-brightness="15">15%</button>
+                                    <button class="chip" data-brightness="20">20%</button>
+                                    <button class="chip" data-brightness="25">25%</button>
+                                    <button class="chip" data-brightness="50">50%</button>
+                                    <button class="chip" data-brightness="75">75%</button>
+                                    <button class="chip" data-brightness="100">100%</button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </section>
-                <section id="sectionLua" class="panel" role="tabpanel">
-                    <div class="panel-header">
-                        <h2><span class="material-icons-round">code</span> Lua Patterns &amp; Editor</h2>
-                    </div>
-                    <div class="panel-body">
-                        <div class="card pattern-run-card">
-                            <h3 class="card-title"><span class="material-icons-round">play_circle</span> Run Lua Pattern</h3>
-                            <div class="status-row">
-                                <span class="field-label">Status:</span>
-                                <span id="patternStatus" class="pattern-status-badge">Idle</span>
+                </div>
+            </section>
+            <section id="sectionLua" class="panel" role="tabpanel">
+                <div class="panel-header">
+                    <h2><span class="material-icons-round">code</span> Lua Patterns &amp; Editor</h2>
+                </div>
+                <div class="panel-body">
+                    <div class="card pattern-run-card">
+                        <h3 class="card-title"><span class="material-icons-round">play_circle</span> Run Lua Pattern
+                        </h3>
+                        <div class="status-row">
+                            <span class="field-label">Status:</span>
+                            <span id="patternStatus" class="pattern-status-badge">Idle</span>
+                        </div>
+                        <div class="pattern-run-row"
+                            style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+                            <div class="field-group" style="flex: 1; min-width: 200px;">
+                                <label for="patternSelector" class="field-label">Select Pattern</label>
+                                <select id="patternSelector" class="field-select"></select>
                             </div>
-                            <div class="pattern-run-row" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
-                                <div class="field-group" style="flex: 1; min-width: 200px;">
-                                    <label for="patternSelector" class="field-label">Select Pattern</label>
-                                    <select id="patternSelector" class="field-select"></select>
-                                </div>
-                                <div class="button-row" style="flex-shrink: 0;">
-                                    <button id="runPatternBtn" class="btn btn-accent">
+                            <div class="button-row" style="flex-shrink: 0;">
+                                <button id="runPatternBtn" class="btn btn-accent">
                                     <span class="material-icons-round">play_arrow</span> Run
-                                    </button>
-                                    <button id="stopPatternBtn" class="btn btn-danger">
+                                </button>
+                                <button id="stopPatternBtn" class="btn btn-danger">
                                     <span class="material-icons-round">stop</span> Stop
-                                    </button>
-                                </div>
+                                </button>
                             </div>
                         </div>
-                        <div class="card pattern-editor-card">
-                            <h3 class="card-title"><span class="material-icons-round">edit</span> Edit Pattern</h3>
-                            <div class="editor-top-row">
-                                <div class="field-group editor-select">
-                                    <label for="editorPatternSelector" class="field-label">Load Pattern</label>
-                                    <select id="editorPatternSelector" class="field-select"></select>
-                                </div>
-                                <div class="button-row editor-actions">
-                                    <button id="loadPatternBtn" class="btn btn-primary">
+                    </div>
+                    <div class="card pattern-editor-card">
+                        <h3 class="card-title"><span class="material-icons-round">edit</span> Edit Pattern</h3>
+                        <div class="editor-top-row">
+                            <div class="field-group editor-select">
+                                <label for="editorPatternSelector" class="field-label">Load Pattern</label>
+                                <select id="editorPatternSelector" class="field-select"></select>
+                            </div>
+                            <div class="button-row editor-actions">
+                                <button id="loadPatternBtn" class="btn btn-primary">
                                     <span class="material-icons-round">download</span> Load
-                                    </button>
-                                    <button id="newPatternBtn" class="btn btn-ghost">
-                                    <span class="material-icons-round">add</span> New
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="field-group">
-                                <label for="editorFilename" class="field-label">Filename <span class="hint-inline">(must end with .lua)</span></label>
-                                <input type="text" id="editorFilename" class="field-input" placeholder="new-pattern.lua">
-                            </div>
-                            <div id="codeEditor" class="code-editor-wrap"></div>
-                            <div class="button-row" style="justify-content: flex-end;">
-                                <button id="savePatternBtn" class="btn btn-accent">
-                                <span class="material-icons-round">save</span> Save
                                 </button>
-                                <button id="deletePatternBtn" class="btn btn-danger">
-                                <span class="material-icons-round">delete</span> Delete
+                                <button id="newPatternBtn" class="btn btn-ghost">
+                                    <span class="material-icons-round">add</span> New
                                 </button>
                             </div>
                         </div>
+                        <div class="field-group">
+                            <label for="editorFilename" class="field-label">Filename <span class="hint-inline">(must end
+                                    with .lua)</span></label>
+                            <input type="text" id="editorFilename" class="field-input" placeholder="new-pattern.lua">
+                        </div>
+                        <div id="codeEditor" class="code-editor-wrap"></div>
+                        <div class="button-row" style="justify-content: flex-end;">
+                            <button id="savePatternBtn" class="btn btn-accent">
+                                <span class="material-icons-round">save</span> Save
+                            </button>
+                            <button id="deletePatternBtn" class="btn btn-danger">
+                                <span class="material-icons-round">delete</span> Delete
+                            </button>
+                        </div>
                     </div>
-                </section>
-                <section id="sectionScheduler" class="panel" role="tabpanel">
-                    <div class="panel-header">
-                        <h2><span class="material-icons-round">schedule</span> Agent Schedules</h2>
-                    </div>
-                    <div class="panel-body">
-                        <div class="card schedule-form-card">
-                            <h3 class="card-title"><span class="material-icons-round">add_alarm</span> Create / Edit Schedule</h3>
-                            <div class="cron-mode-tabs">
-                                <button class="cron-tab active" id="cronTabSimple" data-mode="simple">Simple</button>
-                                <button class="cron-tab" id="cronTabAdvanced" data-mode="advanced">Advanced</button>
+                </div>
+            </section>
+            <section id="sectionScheduler" class="panel" role="tabpanel">
+                <div class="panel-header">
+                    <h2><span class="material-icons-round">schedule</span> Agent Schedules</h2>
+                </div>
+                <div class="panel-body">
+                    <div class="card schedule-form-card">
+                        <h3 class="card-title"><span class="material-icons-round">add_alarm</span> Create / Edit
+                            Schedule</h3>
+                        <div class="cron-mode-tabs">
+                            <button class="cron-tab active" id="cronTabSimple" data-mode="simple">Simple</button>
+                            <button class="cron-tab" id="cronTabAdvanced" data-mode="advanced">Advanced</button>
+                        </div>
+                        <div id="cronSimpleMode" class="cron-mode-panel"
+                            style="display: flex; flex-direction: column; gap: 12px;">
+                            <div class="panel-grid"
+                                style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                                <div class="field-group advanced-panel">
+                                    <label class="field-label">Time</label>
+                                    <div class="time-row">
+                                        <select id="cronHour" class="field-select time-sel"></select>
+                                        <span class="time-sep">:</span>
+                                        <select id="cronMinute" class="field-select time-sel"></select>
+                                    </div>
+                                </div>
                             </div>
-                            <div id="cronSimpleMode" class="cron-mode-panel" style="display: flex; flex-direction: column; gap: 12px;">
-                                <div class="panel-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                                    <div class="field-group advanced-panel">
-                                        <label class="field-label">Time</label>
-                                        <div class="time-row">
-                                            <select id="cronHour" class="field-select time-sel"></select>
-                                            <span class="time-sep">:</span>
-                                            <select id="cronMinute" class="field-select time-sel"></select>
-                                        </div>
+                            <div class="field-group schedule-days-group advanced-panel">
+                                <label class="field-label">Days</label>
+                                <div class="weekday-selector">
+                                    <label class="day-chip"><input type="checkbox" name="cronDay"
+                                            value="0"><span>Mon</span></label>
+                                    <label class="day-chip"><input type="checkbox" name="cronDay"
+                                            value="1"><span>Tue</span></label>
+                                    <label class="day-chip"><input type="checkbox" name="cronDay"
+                                            value="2"><span>Wed</span></label>
+                                    <label class="day-chip"><input type="checkbox" name="cronDay"
+                                            value="3"><span>Thu</span></label>
+                                    <label class="day-chip"><input type="checkbox" name="cronDay"
+                                            value="4"><span>Fri</span></label>
+                                    <label class="day-chip"><input type="checkbox" name="cronDay"
+                                            value="5"><span>Sat</span></label>
+                                    <label class="day-chip"><input type="checkbox" name="cronDay"
+                                            value="6"><span>Sun</span></label>
+                                    <label class="day-chip" id="cronEveryDayLabel"><input type="checkbox"
+                                            id="cronEveryDay"><span>Every Day</span></label>
+                                </div>
+                            </div>
+                            <div class="field-group advanced-panel">
+                                <label for="cronCommandType" class="field-label">Command</label>
+                                <select id="cronCommandType" class="field-select">
+                                    <option value="power on">Power ON</option>
+                                    <option value="power off">Power OFF</option>
+                                    <option value="pattern">Run Pattern…</option>
+                                </select>
+                                <select id="cronPatternSelect" class="field-select"
+                                    style="display:none; margin-top:8px;"></select>
+                            </div>
+                        </div>
+                        <div id="cronAdvancedMode" class="cron-mode-panel"
+                            style="display:none; flex-direction: column; gap: 12px;">
+                            <div class="field-group advanced-panel">
+                                <label for="scheduleSpec" class="field-label">Cron Expression</label>
+                                <input type="text" id="scheduleSpec" class="field-input" placeholder="* * * * *">
+                                <p class="hint"><a href="https://crontab.guru/" target="_blank"
+                                        rel="noopener">crontab.guru</a> — MINUTE HOUR DOM MONTH DOW</p>
+                            </div>
+                            <div class="field-group advanced-panel">
+                                <label for="scheduleCommand" class="field-label">Command</label>
+                                <input type="text" id="scheduleCommand" class="field-input"
+                                    placeholder="power off / pattern sunrise.lua">
+                            </div>
+                        </div>
+                        <div id="scheduleEditBar" class="edit-bar" style="display:none;">
+                            <span class="material-icons-round edit-bar-icon">edit</span>
+                            <span id="scheduleEditLabel">Editing schedule</span>
+                            <button id="cancelScheduleEditBtn" class="btn btn-ghost btn-sm">Cancel</button>
+                        </div>
+                        <div class="button-row" style="justify-content: flex-end;">
+                            <button id="addScheduleBtn" class="btn btn-accent">
+                                <span class="material-icons-round">add</span> Add Schedule
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div
+                            style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding-bottom: 0; margin-bottom: 4px;">
+                            <h3 class="card-title" style="border: none; padding: 0; margin: 0;"><span
+                                    class="material-icons-round">list</span> Active Schedules</h3>
+                            <div class="bulk-action-row">
+                                <button id="pauseAllSchedulesBtn" class="btn btn-outline btn-sm">Pause All</button>
+                                <button id="resumeAllSchedulesBtn" class="btn btn-outline btn-sm">Resume All</button>
+                            </div>
+                        </div>
+                        <ul id="scheduleList" class="schedule-list">
+                            <li class="schedule-empty">No schedules defined.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+            <section id="sectionDocs" class="panel" role="tabpanel">
+                <div class="panel-header">
+                    <h2><span class="material-icons-round">menu_book</span> Docs &amp; API</h2>
+                </div>
+                <div class="panel-body docs-body panel-grid">
+                    <div class="card">
+                        <h3 class="card-title"><span class="material-icons-round">api</span> Lua API</h3>
+                        <p>Create custom animations by writing Lua scripts. The agent exposes these global functions:
+                        </p>
+                        <ul class="doc-list">
+                            <li><code>set_power(boolean)</code> — Turns the LEDs on or off. Example:
+                                <code>set_power(true)</code>
+                            </li>
+                            <li><code>set_color(r, g, b)</code> — Sets the static color (0–255). Example:
+                                <code>set_color(255, 0, 100)</code>
+                            </li>
+                            <li><code>set_brightness(value)</code> — Sets brightness (1–100). Example:
+                                <code>set_brightness(75)</code>
+                            </li>
+                            <li><code>sleep(milliseconds)</code> — Pauses the script. Example: <code>sleep(50)</code>
+                            </li>
+                            <li><code>should_stop()</code> — <strong>(Pattern files only)</strong> Returns
+                                <code>true</code> if the user clicked "Stop". Use in loops:
+                                <code>if should_stop() then return end</code>
+                            </li>
+                            <li><code>print(message)</code> — Prints to the agent console log for debugging.</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3 class="card-title"><span class="material-icons-round">animation</span> Lua Effects</h3>
+                        <p>These functions perform complex animations and block until complete or cancelled.</p>
+                        <ul class="doc-list">
+                            <li><code>breathe(duration_ms)</code> — Smooth 1%→100% brightness pulse. Example:
+                                <code>set_color(0,255,255); breathe(4000)</code>
+                            </li>
+                            <li><code>strobe(r, g, b, duration_ms, freq_hz)</code> — Flash for a total duration.
+                                Example: <code>strobe(255,255,255, 5000, 10)</code></li>
+                            <li><code>fade(r1,g1,b1, r2,g2,b2, duration_ms)</code> — Cross-fade between colors. Example:
+                                <code>fade(255,0,0, 0,0,255, 3000)</code>
+                            </li>
+                            <li><code>fade_brightness(start, end, duration_ms)</code> — Smooth brightness transition.
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card" style="grid-column: 1 / -1;">
+                        <h3 class="card-title"><span class="material-icons-round">schedule</span> Cron Scheduler</h3>
+                        <p>Uses standard cron syntax to automate commands.</p>
+                        <ul class="doc-list">
+                            <li><strong>Syntax:</strong> <code>MINUTE HOUR DOM MONTH DOW</code>.&nbsp; Example:
+                                <code>0 22 * * 1-5</code> = 10 PM Mon–Fri. (<a href="https://crontab.guru/"
+                                    target="_blank" rel="noopener">crontab.guru</a>)
+                            </li>
+                            <li>
+                                <strong>Commands:</strong>
+                                <ul>
+                                    <li><code>power on</code> / <code>power off</code></li>
+                                    <li><code>pattern [filename.lua]</code> — Run a full pattern file</li>
+                                    <li><code>lua[lua_code]</code> — Execute a single line of Lua</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+            <section id="sectionEffects" class="panel" role="tabpanel">
+                <div class="panel-header">
+                    <h2><span class="material-icons-round">auto_awesome</span> Built-in Effects</h2>
+                </div>
+                <div class="panel-body">
+                    <div class="card">
+                        <h3 class="card-title"><span class="material-icons-round">speed</span> Speed</h3>
+                        <div class="slider-row">
+                            <input type="range" id="speedSlider" min="0" max="100" value="50" aria-label="Effect speed">
+                            <span id="speedValue" class="slider-val">50%</span>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3 class="card-title"><span class="material-icons-round">category</span> Built-in Patterns</h3>
+                        <div id="patternGrid" class="hw-pattern-grid"></div>
+                    </div>
+                </div>
+            </section>
+            <section id="sectionAdvanced" class="panel" role="tabpanel">
+                <div class="panel-header">
+                    <h2><span class="material-icons-round">settings</span> Advanced &amp; Settings</h2>
+                </div>
+                <div class="panel-body">
+                    <div class="panel-grid">
+                        <div class="panel-col">
+                            <div class="card advanced-card device-schedule-card">
+                                <h3 class="card-title"><span class="material-icons-round">memory</span> On-Device
+                                    Schedule</h3>
+                                <div class="button-row" style="margin-bottom: 8px;">
+                                    <button id="syncTimeBtn" class="btn btn-outline">
+                                        <span class="material-icons-round">sync</span> Sync Time
+                                    </button>
+                                </div>
+                                <div class="field-group advanced-panel">
+                                    <label class="field-label">On-Device Schedule Time</label>
+                                    <div class="time-row">
+                                        <select id="scheduleHour" class="field-select time-sel"></select>
+                                        <span class="time-sep">:</span>
+                                        <select id="scheduleMinute" class="field-select time-sel"></select>
+                                        <span class="time-sep">:</span>
+                                        <select id="scheduleSecond" class="field-select time-sel"></select>
                                     </div>
                                 </div>
                                 <div class="field-group schedule-days-group advanced-panel">
                                     <label class="field-label">Days</label>
                                     <div class="weekday-selector">
-                                        <label class="day-chip"><input type="checkbox" name="cronDay" value="0"><span>Mon</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="cronDay" value="1"><span>Tue</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="cronDay" value="2"><span>Wed</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="cronDay" value="3"><span>Thu</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="cronDay" value="4"><span>Fri</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="cronDay" value="5"><span>Sat</span></label>
-                                        <label class="day-chip"><input type="checkbox" name="cronDay" value="6"><span>Sun</span></label>
-                                        <label class="day-chip" id="cronEveryDayLabel"><input type="checkbox" id="cronEveryDay"><span>Every Day</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday"
+                                                value="0"><span>Mon</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday"
+                                                value="1"><span>Tue</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday"
+                                                value="2"><span>Wed</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday"
+                                                value="3"><span>Thu</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday"
+                                                value="4"><span>Fri</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday"
+                                                value="5"><span>Sat</span></label>
+                                        <label class="day-chip"><input type="checkbox" name="weekday"
+                                                value="6"><span>Sun</span></label>
+                                        <label class="day-chip" id="deviceEveryDayLabel"><input type="checkbox"
+                                                id="deviceEveryDay"><span>Every Day</span></label>
                                     </div>
                                 </div>
                                 <div class="field-group advanced-panel">
-                                    <label for="cronCommandType" class="field-label">Command</label>
-                                    <select id="cronCommandType" class="field-select">
-                                        <option value="power on">Power ON</option>
-                                        <option value="power off">Power OFF</option>
-                                        <option value="pattern">Run Pattern…</option>
+                                    <label for="scheduleAction" class="field-label">Action</label>
+                                    <select id="scheduleAction" class="field-select">
+                                        <option value="on">Turn ON</option>
+                                        <option value="off">Turn OFF</option>
                                     </select>
-                                    <select id="cronPatternSelect" class="field-select" style="display:none; margin-top:8px;"></select>
+                                </div>
+                                <div class="button-row" style="justify-content: flex-end; margin-top: auto;">
+                                    <button id="clearScheduleBtn" class="btn btn-danger">
+                                        <span class="material-icons-round">event_busy</span> Clear Schedule
+                                    </button>
+                                    <button id="setScheduleBtn" class="btn btn-accent">
+                                        <span class="material-icons-round">alarm_add</span> Add Schedule
+                                    </button>
                                 </div>
                             </div>
-                            <div id="cronAdvancedMode" class="cron-mode-panel" style="display:none; flex-direction: column; gap: 12px;">
-                                <div class="field-group advanced-panel">
-                                    <label for="scheduleSpec" class="field-label">Cron Expression</label>
-                                    <input type="text" id="scheduleSpec" class="field-input" placeholder="* * * * *">
-                                    <p class="hint"><a href="https://crontab.guru/" target="_blank" rel="noopener">crontab.guru</a> — MINUTE HOUR DOM MONTH DOW</p>
-                                </div>
-                                <div class="field-group advanced-panel">
-                                    <label for="scheduleCommand" class="field-label">Command</label>
-                                    <input type="text" id="scheduleCommand" class="field-input" placeholder="power off / pattern sunrise.lua">
-                                </div>
-                            </div>
-                            <div id="scheduleEditBar" class="edit-bar" style="display:none;">
-                                <span class="material-icons-round edit-bar-icon">edit</span>
-                                <span id="scheduleEditLabel">Editing schedule</span>
-                                <button id="cancelScheduleEditBtn" class="btn btn-ghost btn-sm">Cancel</button>
-                            </div>
-                            <div class="button-row" style="justify-content: flex-end;">
-                                <button id="addScheduleBtn" class="btn btn-accent">
-                                <span class="material-icons-round">add</span> Add Schedule
-                                </button>
-                            </div>
                         </div>
-                        <div class="card">
-                            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding-bottom: 0; margin-bottom: 4px;">
-                                <h3 class="card-title" style="border: none; padding: 0; margin: 0;"><span class="material-icons-round">list</span> Active Schedules</h3>
-                                <div class="bulk-action-row">
-                                    <button id="pauseAllSchedulesBtn" class="btn btn-outline btn-sm">Pause All</button>
-                                    <button id="resumeAllSchedulesBtn" class="btn btn-outline btn-sm">Resume All</button>
-                                </div>
-                            </div>
-                            <ul id="scheduleList" class="schedule-list">
-                                <li class="schedule-empty">No schedules defined.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </section>
-                <section id="sectionDocs" class="panel" role="tabpanel">
-                    <div class="panel-header">
-                        <h2><span class="material-icons-round">menu_book</span> Docs &amp; API</h2>
-                    </div>
-                    <div class="panel-body docs-body panel-grid">
-                        <div class="card">
-                            <h3 class="card-title"><span class="material-icons-round">api</span> Lua API</h3>
-                            <p>Create custom animations by writing Lua scripts. The agent exposes these global functions:</p>
-                            <ul class="doc-list">
-                                <li><code>set_power(boolean)</code> — Turns the LEDs on or off. Example: <code>set_power(true)</code></li>
-                                <li><code>set_color(r, g, b)</code> — Sets the static color (0–255). Example: <code>set_color(255, 0, 100)</code></li>
-                                <li><code>set_brightness(value)</code> — Sets brightness (1–100). Example: <code>set_brightness(75)</code></li>
-                                <li><code>sleep(milliseconds)</code> — Pauses the script. Example: <code>sleep(50)</code></li>
-                                <li><code>should_stop()</code> — <strong>(Pattern files only)</strong> Returns <code>true</code> if the user clicked "Stop". Use in loops: <code>if should_stop() then return end</code></li>
-                                <li><code>print(message)</code> — Prints to the agent console log for debugging.</li>
-                            </ul>
-                        </div>
-                        <div class="card">
-                            <h3 class="card-title"><span class="material-icons-round">animation</span> Lua Effects</h3>
-                            <p>These functions perform complex animations and block until complete or cancelled.</p>
-                            <ul class="doc-list">
-                                <li><code>breathe(duration_ms)</code> — Smooth 1%→100% brightness pulse. Example: <code>set_color(0,255,255); breathe(4000)</code></li>
-                                <li><code>strobe(r, g, b, duration_ms, freq_hz)</code> — Flash for a total duration. Example: <code>strobe(255,255,255, 5000, 10)</code></li>
-                                <li><code>fade(r1,g1,b1, r2,g2,b2, duration_ms)</code> — Cross-fade between colors. Example: <code>fade(255,0,0, 0,0,255, 3000)</code></li>
-                                <li><code>fade_brightness(start, end, duration_ms)</code> — Smooth brightness transition.</li>
-                            </ul>
-                        </div>
-                        <div class="card" style="grid-column: 1 / -1;">
-                            <h3 class="card-title"><span class="material-icons-round">schedule</span> Cron Scheduler</h3>
-                            <p>Uses standard cron syntax to automate commands.</p>
-                            <ul class="doc-list">
-                                <li><strong>Syntax:</strong> <code>MINUTE HOUR DOM MONTH DOW</code>.&nbsp; Example: <code>0 22 * * 1-5</code> = 10 PM Mon–Fri. (<a href="https://crontab.guru/" target="_blank" rel="noopener">crontab.guru</a>)</li>
-                                <li>
-                                    <strong>Commands:</strong>
-                                    <ul>
-                                        <li><code>power on</code> / <code>power off</code></li>
-                                        <li><code>pattern [filename.lua]</code> — Run a full pattern file</li>
-                                        <li><code>lua[lua_code]</code> — Execute a single line of Lua</li>
-                                    </ul>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </section>
-                <section id="sectionEffects" class="panel" role="tabpanel">
-                    <div class="panel-header">
-                        <h2><span class="material-icons-round">auto_awesome</span> Built-in Effects</h2>
-                    </div>
-                    <div class="panel-body">
-                        <div class="card">
-                            <h3 class="card-title"><span class="material-icons-round">speed</span> Speed</h3>
-                            <div class="slider-row">
-                                <input type="range" id="speedSlider" min="0" max="100" value="50" aria-label="Effect speed">
-                                <span id="speedValue" class="slider-val">50%</span>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <h3 class="card-title"><span class="material-icons-round">category</span> Built-in Patterns</h3>
-                            <div id="patternGrid" class="hw-pattern-grid"></div>
-                        </div>
-                    </div>
-                </section>
-                <section id="sectionAdvanced" class="panel" role="tabpanel">
-                    <div class="panel-header">
-                        <h2><span class="material-icons-round">settings</span> Advanced &amp; Settings</h2>
-                    </div>
-                    <div class="panel-body">
-                        <div class="panel-grid">
-                            <div class="panel-col">
-                                <div class="card advanced-card device-schedule-card">
-                                    <h3 class="card-title"><span class="material-icons-round">memory</span> On-Device Schedule</h3>
-                                    <div class="button-row" style="margin-bottom: 8px;">
-                                        <button id="syncTimeBtn" class="btn btn-outline">
-                                        <span class="material-icons-round">sync</span> Sync Time
-                                        </button>
-                                    </div>
-                                    <div class="field-group advanced-panel">
-                                        <label class="field-label">On-Device Schedule Time</label>
-                                        <div class="time-row">
-                                            <select id="scheduleHour" class="field-select time-sel"></select>
-                                            <span class="time-sep">:</span>
-                                            <select id="scheduleMinute" class="field-select time-sel"></select>
-                                            <span class="time-sep">:</span>
-                                            <select id="scheduleSecond" class="field-select time-sel"></select>
-                                        </div>
-                                    </div>
-                                    <div class="field-group schedule-days-group advanced-panel">
-                                        <label class="field-label">Days</label>
-                                        <div class="weekday-selector">
-                                            <label class="day-chip"><input type="checkbox" name="weekday" value="0"><span>Mon</span></label>
-                                            <label class="day-chip"><input type="checkbox" name="weekday" value="1"><span>Tue</span></label>
-                                            <label class="day-chip"><input type="checkbox" name="weekday" value="2"><span>Wed</span></label>
-                                            <label class="day-chip"><input type="checkbox" name="weekday" value="3"><span>Thu</span></label>
-                                            <label class="day-chip"><input type="checkbox" name="weekday" value="4"><span>Fri</span></label>
-                                            <label class="day-chip"><input type="checkbox" name="weekday" value="5"><span>Sat</span></label>
-                                            <label class="day-chip"><input type="checkbox" name="weekday" value="6"><span>Sun</span></label>
-                                            <label class="day-chip" id="deviceEveryDayLabel"><input type="checkbox" id="deviceEveryDay"><span>Every Day</span></label>
-                                        </div>
-                                    </div>
-                                    <div class="field-group advanced-panel">
-                                        <label for="scheduleAction" class="field-label">Action</label>
-                                        <select id="scheduleAction" class="field-select">
-                                            <option value="on">Turn ON</option>
-                                            <option value="off">Turn OFF</option>
+                        <div class="panel-col">
+                            <div class="card advanced-card device-rgb-card">
+                                <h3 class="card-title"><span class="material-icons-round">cable</span> RGB Channel Order
+                                </h3>
+                                <div class="wire-order-grid advanced-panel">
+                                    <div class="field-group">
+                                        <label for="wire1" class="field-label">1st Wire</label>
+                                        <select id="wire1" class="field-select">
+                                            <option value="1" selected>Red</option>
+                                            <option value="2">Green</option>
+                                            <option value="3">Blue</option>
                                         </select>
                                     </div>
-                                    <div class="button-row" style="justify-content: flex-end; margin-top: auto;">
-                                        <button id="clearScheduleBtn" class="btn btn-danger">
-                                        <span class="material-icons-round">event_busy</span> Clear Device Schedule
-                                        </button>
-                                        <button id="setScheduleBtn" class="btn btn-accent">
-                                        <span class="material-icons-round">alarm_add</span> Set Schedule
-                                        </button>
+                                    <div class="field-group">
+                                        <label for="wire2" class="field-label">2nd Wire</label>
+                                        <select id="wire2" class="field-select">
+                                            <option value="1">Red</option>
+                                            <option value="2" selected>Green</option>
+                                            <option value="3">Blue</option>
+                                        </select>
                                     </div>
+                                    <div class="field-group">
+                                        <label for="wire3" class="field-label">3rd Wire</label>
+                                        <select id="wire3" class="field-select">
+                                            <option value="1">Red</option>
+                                            <option value="2">Green</option>
+                                            <option value="3" selected>Blue</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="button-row" style="justify-content: flex-end; margin-top: auto;">
+                                    <button id="setRgbOrderBtn" class="btn btn-primary">
+                                        <span class="material-icons-round">swap_horiz</span> Apply Order
+                                    </button>
                                 </div>
                             </div>
-                            <div class="panel-col">
-                                <div class="card advanced-card device-rgb-card">
-                                    <h3 class="card-title"><span class="material-icons-round">cable</span> RGB Channel Order</h3>
-                                    <div class="wire-order-grid advanced-panel">
-                                        <div class="field-group">
-                                            <label for="wire1" class="field-label">1st Wire</label>
-                                            <select id="wire1" class="field-select">
-                                                <option value="1" selected>Red</option>
-                                                <option value="2">Green</option>
-                                                <option value="3">Blue</option>
-                                            </select>
-                                        </div>
-                                        <div class="field-group">
-                                            <label for="wire2" class="field-label">2nd Wire</label>
-                                            <select id="wire2" class="field-select">
-                                                <option value="1">Red</option>
-                                                <option value="2" selected>Green</option>
-                                                <option value="3">Blue</option>
-                                            </select>
-                                        </div>
-                                        <div class="field-group">
-                                            <label for="wire3" class="field-label">3rd Wire</label>
-                                            <select id="wire3" class="field-select">
-                                                <option value="1">Red</option>
-                                                <option value="2">Green</option>
-                                                <option value="3" selected>Blue</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="button-row" style="justify-content: flex-end; margin-top: auto;">
-                                        <button id="setRgbOrderBtn" class="btn btn-primary">
-                                        <span class="material-icons-round">swap_horiz</span> Apply Order
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="card advanced-card ui-settings-card">
+                            <div class="card advanced-card ui-settings-card">
                                 <h3 class="card-title"><span class="material-icons-round">tune</span> Settings</h3>
                                 <div class="settings-stack">
                                     <div class="setting-row">
@@ -451,24 +509,28 @@
                                             <div class="setting-hint">Automatically open the last visited tab.</div>
                                         </div>
                                         <label class="schedule-toggle setting-toggle">
-                                            <input id="rememberLastSectionToggle" class="schedule-toggle-input" type="checkbox" aria-label="Remember last section">
+                                            <input id="rememberLastSectionToggle" class="schedule-toggle-input"
+                                                type="checkbox" aria-label="Remember last section">
                                             <span class="schedule-toggle-slider"></span>
                                         </label>
                                     </div>
                                     <div class="setting-row">
                                         <div class="setting-text">
                                             <div class="setting-label">Hide Built-in Effects</div>
-                                            <div class="setting-hint">Remove the Effects section from the sidebar and main view.</div>
+                                            <div class="setting-hint">Remove the Effects section from the sidebar and
+                                                main view.</div>
                                         </div>
                                         <label class="schedule-toggle setting-toggle">
-                                            <input id="hideEffectsToggle" class="schedule-toggle-input" type="checkbox" aria-label="Hide Built-in Effects">
+                                            <input id="hideEffectsToggle" class="schedule-toggle-input" type="checkbox"
+                                                aria-label="Hide Built-in Effects">
                                             <span class="schedule-toggle-slider"></span>
                                         </label>
                                     </div>
                                     <div class="setting-row">
                                         <div class="setting-text">
                                             <div class="setting-label">Reset UI Preferences</div>
-                                            <div class="setting-hint">Restore defaults for theme, sidebar, UI toggles, and color presets.</div>
+                                            <div class="setting-hint">Restore defaults for theme, sidebar, UI toggles,
+                                                and color presets.</div>
                                         </div>
                                         <button id="resetUiPrefsBtn" class="btn btn-ghost">
                                             <span class="material-icons-round">restart_alt</span>
@@ -479,15 +541,16 @@
                             </div>
                         </div>
                     </div>
-                    </div>
-                </section>
-            </main>
-        </div>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/lua/lua.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/active-line.min.js"></script>
-        <script type="module" src="./js/main.js"></script>
-    </body>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/lua/lua.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/active-line.min.js"></script>
+    <script type="module" src="./js/main.js"></script>
+</body>
+
 </html>
