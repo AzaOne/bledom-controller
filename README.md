@@ -13,7 +13,7 @@ An advanced web-based controller for "BLEDOM" Bluetooth Low Energy (BLE) LED lig
 - **MQTT & Home Assistant:** Full MQTT integration with Home Assistant Auto-Discovery. Control power, color, brightness, and trigger Lua patterns via MQTT. Status changes are broadcasted in real-time via MQTT and WebSockets.
 - **Agent-Side Scheduling:** Use standard cron syntax to schedule commands (e.g., `power on`, `run pattern sunrise.lua`). Schedules are saved and persist across restarts.
 - **On-Device Scheduling:** Sync the device's time and set its internal on/off schedule.
-- **Dockerized & Cross-Platform:** Easy deployment using Docker and Docker Compose. Build scripts are included for native cross-platform binaries (Linux AMD64/ARM64).
+- **Dockerized & Cross-Platform:** Easy deployment using Docker and Docker Compose. On Linux, `tinygo/x/bluetooth` talks to the host BlueZ daemon over the system D-Bus socket, so the container does not need its own BlueZ stack.
 - **Automatic Reconnection:** The agent constantly monitors the BLE connection and will automatically reconnect and resume patterns if the device disconnects.
 - **Event-Driven Architecture:** Robust internal design featuring a centralized state, event bus, and a unified command pattern for reliable operation and easy extensibility.
 
@@ -25,7 +25,8 @@ The easiest way to run the BLEDOM Controller is with Docker and Docker Compose.
 
 - A Linux host with a working Bluetooth adapter (e.g., a Raspberry Pi, NUC, or any server).
 - [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/) installed on the host.
-- The host's Bluetooth service must be running and not actively used by another application.
+- The host's BlueZ service must be running and not actively used by another application.
+- The container must have access to the host system D-Bus socket at `/var/run/dbus/system_bus_socket`.
 
 ### Installation
 
@@ -55,6 +56,7 @@ The easiest way to run the BLEDOM Controller is with Docker and Docker Compose.
     ```sh
     docker compose up -d
     ```
+    The compose files mount `/var/run/dbus` from the host and set `DBUS_SYSTEM_BUS_ADDRESS`, which allows `tinygo/x/bluetooth` to use the host BlueZ daemon via D-Bus.
 
 4.  **Access the Web UI:**
     Open your web browser and navigate to `http://<your-host-ip>:8080`. The controller will automatically scan for and connect to your BLEDOM device.
@@ -133,9 +135,9 @@ If you prefer to run the agent without Docker:
 
 1.  **Install Prerequisites:**
     - Go 1.25+
-    - C compiler and D-Bus development libraries. Installation commands for common distributions:
-      - **Debian/Ubuntu:** `sudo apt update && sudo apt install build-essential libdbus-1-dev`
-      - **Arch Linux:** `sudo pacman -S base-devel dbus`
+    - A Linux host with BlueZ running and the current user allowed to talk to the system D-Bus.
+      - **Debian/Ubuntu:** `sudo apt update && sudo apt install bluez dbus`
+      - **Arch Linux:** `sudo pacman -S bluez dbus`
 
 2.  **Run the build script:**
     The script will build binaries for multiple platforms and place them in the `build/` directory.
