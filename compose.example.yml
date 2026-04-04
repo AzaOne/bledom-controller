@@ -6,7 +6,7 @@ services:
     privileged: true
     restart: unless-stopped
     volumes:
-      - /var/run/dbus:/var/run/dbus
+      - /var/run/dbus:/var/run/dbus:ro
       - ./patterns:/app/patterns
       - ./schedules.json:/app/schedules.json
       - ./config.json:/app/config.json

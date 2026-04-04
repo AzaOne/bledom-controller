@@ -41,23 +41,26 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         ./cmd/agent/main.go; \
     fi
 
-# --- Stage 2: Final Image ---
-FROM debian:trixie-slim
+# --- Stage 2: Runtime Assets ---
+FROM alpine:3.22 AS runtime-assets
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    bluez \
-    dbus \
-    dbus-x11 \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates
+
+# --- Stage 3: Final Image ---
+FROM scratch
+
+# MQTT over TLS and similar outbound connections need a CA bundle.
+COPY --from=runtime-assets /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 WORKDIR /app
 
-COPY --from=builder /app/bledom-controller .
+ENV DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
+
+COPY --from=builder /app/bledom-controller /app/bledom-controller
 
 COPY ./web ./web
 COPY ./patterns ./patterns
 
 EXPOSE 8080
 
-CMD ["dbus-launch", "--exit-with-session", "/app/bledom-controller"]
+ENTRYPOINT ["/app/bledom-controller"]
