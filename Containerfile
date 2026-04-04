@@ -31,6 +31,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     if [ -f /app/build/bledom-controller-${TARGETOS}-${TARGETARCH} ]; then \
         echo "Using pre-built binary for ${TARGETOS}/${TARGETARCH}"; \
         cp /app/build/bledom-controller-${TARGETOS}-${TARGETARCH} /app/bledom-controller; \
+        chmod 0755 /app/bledom-controller; \
     else \
         echo "Building from source..."; \
         COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") && \
@@ -38,7 +39,8 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
         -ldflags="-s -w -X 'main.commit=${COMMIT}' -X 'main.date=${DATE}'" \
         -o /app/bledom-controller \
-        ./cmd/agent/main.go; \
+        ./cmd/agent/main.go && \
+        chmod 0755 /app/bledom-controller; \
     fi
 
 # --- Stage 2: Runtime Assets ---
