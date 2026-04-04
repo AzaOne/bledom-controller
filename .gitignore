@@ -9,6 +9,7 @@ bledom-controller
 *.swp
 *.swo
 .DS_Store
+.codex
 
 # User data files
 schedules.json
