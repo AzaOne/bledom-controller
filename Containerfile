@@ -34,6 +34,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         chmod 0755 /app/bledom-controller; \
     else \
         echo "Building from source..."; \
+        go run ./internal/server/webassets/cmd/syncweb && \
         COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") && \
         DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') && \
         CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
@@ -60,7 +61,6 @@ ENV DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
 
 COPY --from=builder /app/bledom-controller /app/bledom-controller
 
-COPY ./web ./web
 COPY ./patterns ./patterns
 
 EXPOSE 8080

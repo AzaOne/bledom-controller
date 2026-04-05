@@ -73,7 +73,7 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 	a.scheduler = scheduler.NewScheduler(a.commandChannel, cfg.SchedulesFile)
 
 	// Create Server
-	a.server = server.NewServer(
+	srv, err := server.NewServer(
 		a.luaEngine,
 		a.eventBus,
 		a.state,
@@ -84,6 +84,10 @@ func NewAgent(cfg *config.Config) (*Agent, error) {
 		cfg.Server.AllowedOrigins,
 		cfg.Server.EnablePprof,
 	)
+	if err != nil {
+		return nil, err
+	}
+	a.server = srv
 
 	a.scheduler.SetOnChange(func() {
 		if a.server != nil && a.server.Hub != nil {
@@ -461,7 +465,6 @@ func (a *Agent) publishInitialState() {
 		},
 	})
 }
-
 
 // Shutdown gracefully stops all agent components and wait groups.
 func (a *Agent) Shutdown() {

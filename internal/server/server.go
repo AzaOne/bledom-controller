@@ -45,7 +45,7 @@ type Server struct {
 }
 
 // NewServer creates and initializes a new Server instance.
-func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *scheduler.Scheduler, cmdChan core.CommandChannel, port string, webFilesDir string, allowedOrigins []string, enablePprof bool) *Server {
+func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *scheduler.Scheduler, cmdChan core.CommandChannel, port string, webFilesDir string, allowedOrigins []string, enablePprof bool) (*Server, error) {
 	hub := NewHub()
 	go hub.Run()
 
@@ -82,18 +82,23 @@ func NewServer(luaEngine *lua.Engine, eb *core.EventBus, st *core.State, sched *
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/", newStaticHandler(s.webFilesDir))
+	staticHandler, staticSource, err := newStaticHandler(s.webFilesDir)
+	if err != nil {
+		return nil, err
+	}
+	mux.Handle("/", staticHandler)
 	mux.HandleFunc("/ws", s.handleWebSocket)
 	if enablePprof {
 		registerPprof(mux)
 		log.Println("[Server] pprof enabled at /debug/pprof/")
 	}
 	s.httpServer = &http.Server{Addr: ":" + port, Handler: mux}
+	log.Printf("[Server] Serving web UI from %s", staticSource)
 
 	// Subscribe to internal events to broadcast them to clients
 	go s.listenEvents()
 
-	return s
+	return s, nil
 }
 
 func registerPprof(mux *http.ServeMux) {

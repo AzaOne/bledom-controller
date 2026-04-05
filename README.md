@@ -146,10 +146,15 @@ If you prefer to run the agent without Docker:
     ```
 
 3.  **Run the agent:**
-    Ensure the `web/` and `patterns/` directories are in the same location as the binary.
+    The binary includes the web UI. Keep the `patterns/` directory in the working directory if you want the default pattern path to work unchanged. If a local `web/` directory is present, it is used as a live override for frontend development.
     ```sh
     ./build/bledom-controller-linux-amd64
     ```
+
+If you change files under `web/`, resync the embedded copy before rebuilding:
+```sh
+go run ./internal/server/webassets/cmd/syncweb
+```
 
 ## Project Structure
 
@@ -161,7 +166,8 @@ If you prefer to run the agent without Docker:
 - `internal/mqtt`: Handles MQTT connections, HA Auto-Discovery, and message mapping.
 - `internal/server`: The WebSocket and HTTP server.
 - `internal/scheduler`: The cron-based job scheduler.
-- `web/`: Contains the frontend HTML, CSS, and JavaScript.
+- `web/`: Source frontend HTML, CSS, and JavaScript.
+- `internal/server/webassets/dist/`: Generated copy of `web/` that is embedded into the binary.
 - `patterns/`: Default location for user-created Lua patterns.
 - `Dockerfile`: Defines the container for production deployment.
 - `compose.yml`: Easy-to-use Docker Compose file for deployment.

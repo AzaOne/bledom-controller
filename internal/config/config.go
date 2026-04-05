@@ -11,6 +11,7 @@ import (
 type ServerConfig struct {
 	Port           string   `json:"port"`
 	WebFilesDir    string   `json:"web_files_dir"`
+	StaticFilesDir string   `json:"static_files_dir"`
 	AllowedOrigins []string `json:"allowed_origins"`
 	EnablePprof    bool     `json:"enable_pprof"`
 }
@@ -83,6 +84,7 @@ func Load(path string) (*Config, error) {
 func (c *Config) sanitize() {
 	c.Server.Port = strings.TrimSpace(c.Server.Port)
 	c.Server.WebFilesDir = strings.TrimSpace(c.Server.WebFilesDir)
+	c.Server.StaticFilesDir = strings.TrimSpace(c.Server.StaticFilesDir)
 	c.PatternsDir = strings.TrimSpace(c.PatternsDir)
 	c.SchedulesFile = strings.TrimSpace(c.SchedulesFile)
 
@@ -97,6 +99,9 @@ func (c *Config) setDefaults() {
 	// Server Defaults
 	if c.Server.Port == "" {
 		c.Server.Port = "8080"
+	}
+	if c.Server.WebFilesDir == "" && c.Server.StaticFilesDir != "" {
+		c.Server.WebFilesDir = c.Server.StaticFilesDir
 	}
 	if c.Server.WebFilesDir == "" {
 		c.Server.WebFilesDir = "./web"

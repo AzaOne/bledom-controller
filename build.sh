@@ -14,6 +14,9 @@ TARGETS=(
 
 echo "Starting build for ${APP_NAME}..."
 
+echo "Syncing embedded web assets..."
+go run ./internal/server/webassets/cmd/syncweb
+
 
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
