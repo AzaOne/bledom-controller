@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/fs"
+	"log"
 	"mime"
 	"net/http"
 	"os"
@@ -22,7 +23,8 @@ type staticHandler struct {
 
 type staticSource struct {
 	fs              fs.FS
-	label           string
+	mode            string
+	location        string
 	dynamicVersions bool
 	versions        map[string]string
 }
@@ -32,27 +34,29 @@ func newStaticHandler(overrideDir string) (http.Handler, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	return &staticHandler{source: source}, source.label, nil
+	return &staticHandler{source: source}, source.description(), nil
 }
 
 func loadStaticSource(overrideDir string) (*staticSource, error) {
 	if overrideDir != "" {
 		if info, err := os.Stat(overrideDir); err == nil && info.IsDir() {
-			return newStaticSource(os.DirFS(overrideDir), fmt.Sprintf("filesystem:%s", overrideDir), true)
+			return newStaticSource(os.DirFS(overrideDir), "external", overrideDir, true)
 		}
+		log.Printf("[Server] External web directory %q not found, falling back to embedded assets", overrideDir)
 	}
 
 	staticFS, err := webassets.FS()
 	if err != nil {
 		return nil, fmt.Errorf("load embedded web assets: %w", err)
 	}
-	return newStaticSource(staticFS, "embedded", false)
+	return newStaticSource(staticFS, "embedded", "", false)
 }
 
-func newStaticSource(staticFS fs.FS, label string, dynamicVersions bool) (*staticSource, error) {
+func newStaticSource(staticFS fs.FS, mode, location string, dynamicVersions bool) (*staticSource, error) {
 	source := &staticSource{
 		fs:              staticFS,
-		label:           label,
+		mode:            mode,
+		location:        location,
 		dynamicVersions: dynamicVersions,
 	}
 	if dynamicVersions {
@@ -88,6 +92,13 @@ func buildAssetVersions(staticFS fs.FS) (map[string]string, error) {
 		return nil, fmt.Errorf("index static assets: %w", err)
 	}
 	return versions, nil
+}
+
+func (s *staticSource) description() string {
+	if s.mode == "external" {
+		return fmt.Sprintf("external web directory %q", s.location)
+	}
+	return "embedded web assets"
 }
 
 func (h *staticHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
